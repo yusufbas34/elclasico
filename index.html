@@ -10,18 +10,20 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
   :root{
-    --bg: #0B2417;
-    --bg-2: #081C11;
-    --surface: #123626;
-    --surface-2: #1B4430;
-    --line: #2F5F44;
-    --chalk: #F3F6EE;
-    --muted: #8FB39E;
-    --lime: #C6F135;
-    --lime-dim: #8FAE28;
-    --amber: #FFB627;
-    --coral: #FF6B57;
-    --pos-def: #6FA98A;
+    --bg: #0A0D16;
+    --bg-2: #05060B;
+    --surface: #14182A;
+    --surface-2: #1D2340;
+    --line: #2E345A;
+    --chalk: #F5F7FA;
+    --muted: #8992B8;
+    --lime: #D6FF3F;
+    --lime-dim: #9FCC1E;
+    --amber: #FFB020;
+    --coral: #FF4D6D;
+    --cyan: #2FE6D9;
+    --violet: #9B6BFF;
+    --pos-def: #2FE6D9;
     --radius: 14px;
     --radius-sm: 8px;
   }
@@ -29,8 +31,9 @@
   html,body{ margin:0; padding:0; }
   body{
     background:
-      radial-gradient(1200px 600px at 20% -10%, rgba(198,241,53,0.08), transparent 60%),
-      radial-gradient(900px 500px at 90% 0%, rgba(255,182,39,0.06), transparent 55%),
+      radial-gradient(1100px 550px at 15% -10%, rgba(214,255,63,0.10), transparent 60%),
+      radial-gradient(900px 500px at 95% -5%, rgba(155,107,255,0.12), transparent 55%),
+      radial-gradient(800px 450px at 50% 110%, rgba(47,230,217,0.08), transparent 55%),
       var(--bg);
     color: var(--chalk);
     font-family: 'Inter', sans-serif;
@@ -57,9 +60,11 @@
   }
   .hero-glow{
     position:absolute; top:-120px; left:50%; transform:translateX(-50%);
-    width:600px; height:300px;
-    background: radial-gradient(ellipse at center, rgba(198,241,53,0.18), transparent 70%);
-    filter: blur(10px);
+    width:760px; height:340px;
+    background:
+      radial-gradient(ellipse 40% 60% at 30% 50%, rgba(214,255,63,0.22), transparent 70%),
+      radial-gradient(ellipse 40% 60% at 70% 50%, rgba(155,107,255,0.20), transparent 70%);
+    filter: blur(14px);
     pointer-events:none;
   }
   .eyebrow{
@@ -81,7 +86,10 @@
     letter-spacing: 0.5px;
     color: var(--chalk);
   }
-  h1.title span{ color: var(--lime); }
+  h1.title span{
+    background: linear-gradient(135deg, var(--lime), var(--cyan));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
   .hero-sub{
     max-width: 560px;
     color: var(--muted);
@@ -278,7 +286,7 @@
   .p-attend input:checked + .toggle::after{ transform: translateX(15px); background: var(--bg-2); }
   .p-card.pos-Kaleci{ border-left-color: var(--amber); }
   .p-card.pos-Defans{ border-left-color: var(--pos-def); }
-  .p-card.pos-OrtaSaha{ border-left-color: var(--lime); }
+  .p-card.pos-OrtaSaha{ border-left-color: var(--violet); }
   .p-card.pos-Forvet{ border-left-color: var(--coral); }
 
   .p-card-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-top: 14px; }
@@ -293,8 +301,9 @@
   .p-bar-label{ font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--muted); width:26px; }
   .p-bar-track{ flex:1; height:4px; background: var(--line); border-radius:2px; overflow:hidden; }
   .p-bar-fill{ display:block; height:100%; background: var(--lime); border-radius:2px; }
+  .p-bar-val{ font-family:'JetBrains Mono', monospace; font-size:9.5px; color: var(--chalk); width:22px; text-align:right; flex-shrink:0; }
   .p-del{
-    position:absolute; top:11px; right:52px;
+    position:absolute; top:11px; right:80px;
     width:22px; height:22px; border-radius:50%;
     background: transparent; color: var(--muted);
     display:flex; align-items:center; justify-content:center;
@@ -302,7 +311,18 @@
     opacity: 0; transition: opacity .15s ease;
   }
   .p-card:hover .p-del{ opacity: 1; }
-  .p-del:hover{ background: rgba(255,107,87,0.15); color: var(--coral); }
+  .p-del:hover{ background: rgba(255,77,109,0.15); color: var(--coral); }
+
+  .p-edit{
+    position:absolute; top:11px; right:50px;
+    width:22px; height:22px; border-radius:50%;
+    background: transparent; color: var(--muted);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 13px; line-height:1;
+    opacity: 0; transition: opacity .15s ease;
+  }
+  .p-card:hover .p-edit{ opacity: 1; }
+  .p-edit:hover{ background: rgba(214,255,63,0.15); color: var(--lime); }
 
   .lock-overlay{
     position:absolute; inset:0; z-index:5;
@@ -320,6 +340,8 @@
   .lock-error{ color: var(--coral); font-size:11.5px; height:14px; font-family:'JetBrains Mono',monospace; }
   .relock-row{ margin-top:14px; text-align:right; }
 
+  .p-card.editable{ cursor: pointer; }
+  .p-card.editable:hover{ border-color: rgba(214,255,63,0.4); }
   .p-avatar{
     width:38px; height:38px; border-radius:50%;
     background: var(--surface-2);
@@ -522,6 +544,7 @@
       </div>
 
       <button class="btn-primary" id="btnAdd">+ Kadroya Ekle</button>
+      <button class="btn-ghost" id="btnCancelEdit" style="display:none; margin-top:8px; width:100%; justify-content:center;">İptal</button>
 
       <div class="relock-row">
         <button class="btn-ghost" id="btnRelock">🔒 Kilitle</button>
@@ -559,6 +582,9 @@
       <span class="format-label">Maç Tarihi</span>
       <input type="date" id="matchDate">
       <button class="btn-ghost" id="btnToday">Bugün</button>
+      <select id="matchHistorySelect" style="max-width:170px;">
+        <option value="">Kayıtlı maçlar…</option>
+      </select>
     </div>
     <div class="format-group">
       <span class="format-label">Sistem</span>
@@ -584,12 +610,13 @@
 <script>
 (function(){
   const COLORS = {
-    bg2: '#081C11', surface: '#123626', surface2: '#1B4430', line: '#2F5F44',
-    chalk: '#F3F6EE', muted: '#8FB39E', lime: '#C6F135', amber: '#FFB627',
-    coral: '#FF6B57', posDef: '#6FA98A'
+    bg2: '#05060B', surface: '#14182A', surface2: '#1D2340', line: '#2E345A',
+    chalk: '#F5F7FA', muted: '#8992B8', lime: '#D6FF3F', amber: '#FFB020',
+    coral: '#FF4D6D', posDef: '#2FE6D9', violet: '#9B6BFF',
+    grass: '#0F3D22', grassLine: '#2E6B45'
   };
   const POS_ORDER = ['Kaleci','Defans','Orta Saha','Forvet'];
-  const POS_COLOR = { 'Kaleci': COLORS.amber, 'Defans': COLORS.posDef, 'Orta Saha': COLORS.lime, 'Forvet': COLORS.coral };
+  const POS_COLOR = { 'Kaleci': COLORS.amber, 'Defans': COLORS.posDef, 'Orta Saha': COLORS.violet, 'Forvet': COLORS.coral };
   const POS_CLASS = { 'Kaleci':'pos-Kaleci', 'Defans':'pos-Defans', 'Orta Saha':'pos-OrtaSaha', 'Forvet':'pos-Forvet' };
 
   // Değiştirmek istersen bu şifreyi güncelle:
@@ -694,8 +721,22 @@
     }catch(err){
       console.error('Maç geçmişi okunamadı:', err);
     }
+    renderHistorySelect();
     tryLoadDate($('#matchDate').value || todayStr());
   }
+
+  function renderHistorySelect(){
+    const sel = $('#matchHistorySelect');
+    const cur = $('#matchDate').value;
+    sel.innerHTML = '<option value="">Kayıtlı maçlar…</option>' +
+      allMatches.slice().reverse().map(m => `<option value="${m.id}" ${m.id===cur?'selected':''}>${formatDateLabel(m.tarih)} (${m.format}x${m.format})</option>`).join('');
+  }
+
+  $('#matchHistorySelect').addEventListener('change', (e) => {
+    if(!e.target.value) return;
+    $('#matchDate').value = e.target.value;
+    tryLoadDate(e.target.value);
+  });
 
   $('#matchDate').addEventListener('change', () => tryLoadDate($('#matchDate').value));
   $('#btnToday').addEventListener('click', () => {
@@ -723,6 +764,7 @@
   $('#lockPassInput').addEventListener('keydown', e => { if(e.key==='Enter') tryUnlock(); });
   $('#btnRelock').addEventListener('click', () => {
     unlocked = false;
+    cancelEdit();
     renderLockUI();
     renderRoster();
   });
@@ -757,7 +799,9 @@
     $('#'+id).addEventListener('input', e => { $('#'+map[i]).textContent = (+e.target.value).toFixed(1); });
   });
 
-  // ---------- add player ----------
+  // ---------- add / edit player ----------
+  let editingId = null;
+
   $('#btnAdd').addEventListener('click', () => {
     const ad = $('#fAd').value.trim();
     const soyad = $('#fSoyad').value.trim();
@@ -765,17 +809,22 @@
       flash($('#fAd')); flash($('#fSoyad'));
       return;
     }
-    players.push({
-      id: uid(),
+    const data = {
       ad, soyad,
       foto: pendingPhoto,
       mevki: $('#fMevki').value,
       pas: +$('#fPas').value,
       sut: +$('#fSut').value,
       kosu: +$('#fKosu').value,
-      savunma: +$('#fSavunma').value,
-      gelecek: true
-    });
+      savunma: +$('#fSavunma').value
+    };
+    if(editingId){
+      const p = players.find(x => x.id === editingId);
+      if(p) Object.assign(p, data);
+      cancelEdit();
+    } else {
+      players.push({ id: uid(), gelecek: true, ...data });
+    }
     $('#fAd').value = ''; $('#fSoyad').value = '';
     pendingPhoto = null;
     $('#photoPreview').innerHTML = 'Yok';
@@ -784,6 +833,35 @@
     renderRoster();
     savePool();
   });
+
+  function startEdit(id){
+    const p = players.find(x => x.id === id);
+    if(!p || !unlocked) return;
+    editingId = id;
+    $('#fAd').value = p.ad;
+    $('#fSoyad').value = p.soyad;
+    $('#fMevki').value = p.mevki;
+    $('#fPas').value = p.pas; $('#vPas').textContent = p.pas.toFixed(1);
+    $('#fSut').value = p.sut; $('#vSut').textContent = p.sut.toFixed(1);
+    $('#fKosu').value = p.kosu; $('#vKosu').textContent = p.kosu.toFixed(1);
+    $('#fSavunma').value = p.savunma; $('#vSavunma').textContent = p.savunma.toFixed(1);
+    pendingPhoto = p.foto || null;
+    $('#photoPreview').innerHTML = p.foto ? `<img src="${p.foto}">` : 'Yok';
+    $('#btnAdd').textContent = '✓ Oyuncuyu Güncelle';
+    $('#btnCancelEdit').style.display = 'flex';
+    $('#addPanelContent').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  function cancelEdit(){
+    editingId = null;
+    $('#fAd').value = ''; $('#fSoyad').value = '';
+    pendingPhoto = null;
+    $('#photoPreview').innerHTML = 'Yok';
+    $('#fFoto').value = '';
+    $('#btnAdd').textContent = '+ Kadroya Ekle';
+    $('#btnCancelEdit').style.display = 'none';
+  }
+  $('#btnCancelEdit').addEventListener('click', cancelEdit);
 
   $('#btnSelectAll').addEventListener('click', () => {
     players.forEach(p => p.gelecek = true);
@@ -846,6 +924,12 @@
     $('#statTotal').textContent = players.length;
     $('#statAttending').textContent = players.filter(p=>p.gelecek).length;
 
+    $$('.p-edit').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startEdit(btn.dataset.id);
+      });
+    });
     $$('.p-del').forEach(btn => {
       btn.addEventListener('click', () => {
         players = players.filter(p => p.id !== btn.dataset.id);
@@ -859,21 +943,31 @@
         if(p){ p.gelecek = cb.checked; renderRoster(); savePool(); }
       });
     });
+    if(unlocked){
+      $$('.p-card.editable').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if(e.target.closest('.p-del') || e.target.closest('.p-attend') || e.target.closest('.p-edit')) return;
+          startEdit(card.dataset.id);
+        });
+      });
+    }
   }
 
   function bar(label, val){
     return `<div class="p-bar-row">
       <span class="p-bar-label">${label}</span>
       <span class="p-bar-track"><span class="p-bar-fill" style="width:${val*10}%"></span></span>
+      <span class="p-bar-val">${fmt1(val)}</span>
     </div>`;
   }
 
   function cardHtml(p){
-    return `<div class="p-card ${POS_CLASS[p.mevki]} ${p.gelecek ? '' : 'out'}">
+    return `<div class="p-card ${POS_CLASS[p.mevki]} ${p.gelecek ? '' : 'out'} ${unlocked ? 'editable' : ''}" data-id="${p.id}">
       <label class="p-attend">
         <input type="checkbox" data-id="${p.id}" ${p.gelecek ? 'checked' : ''}>
         <span class="toggle"></span>
       </label>
+      ${unlocked ? `<button class="p-edit" data-id="${p.id}" title="Düzenle">✎</button>` : ''}
       ${unlocked ? `<button class="p-del" data-id="${p.id}">✕</button>` : ''}
       <div class="p-card-top">
         <div class="p-name-wrap">
@@ -972,6 +1066,7 @@
       const idx = allMatches.findIndex(m => m.id === record.id);
       if(idx >= 0) allMatches[idx] = record; else allMatches.push(record);
       allMatches.sort((a,b) => a.id.localeCompare(b.id));
+      renderHistorySelect();
       displayRecord(record);
     }catch(err){
       console.error('Kadro kaydedilemedi:', err);
@@ -1022,6 +1117,7 @@
     const rec = allMatches.find(m => m.id === dateStr);
     if(rec) displayRecord(rec);
     else displayEmptyForDate(dateStr);
+    renderHistorySelect();
   }
 
   function displayEmptyForDate(dateStr){
@@ -1137,15 +1233,15 @@
     <svg viewBox="0 0 ${W} ${H}" width="100%" height="auto" style="display:block;">
       <defs>
         <pattern id="stripes" width="${W}" height="${H/9}" patternUnits="userSpaceOnUse">
-          <rect width="${W}" height="${H/9}" fill="rgba(243,246,238,0.015)"/>
-          <rect width="${W}" height="${H/18}" fill="rgba(243,246,238,0.03)"/>
+          <rect width="${W}" height="${H/9}" fill="${COLORS.grass}"/>
+          <rect width="${W}" height="${H/18}" fill="rgba(255,255,255,0.045)"/>
         </pattern>
       </defs>
-      <rect x="2" y="2" width="${W-4}" height="${H-4}" rx="10" fill="url(#stripes)" stroke="${COLORS.line}" stroke-width="1.5"/>
-      <line x1="10" y1="${H/2}" x2="${W-10}" y2="${H/2}" stroke="${COLORS.line}" stroke-width="1.2" stroke-dasharray="4 4"/>
-      <circle cx="${W/2}" cy="${H/2}" r="34" fill="none" stroke="${COLORS.line}" stroke-width="1.2"/>
-      <rect x="${W/2-55}" y="6" width="110" height="34" fill="none" stroke="${COLORS.line}" stroke-width="1.2"/>
-      <rect x="${W/2-55}" y="${H-40}" width="110" height="34" fill="none" stroke="${COLORS.line}" stroke-width="1.2"/>
+      <rect x="2" y="2" width="${W-4}" height="${H-4}" rx="10" fill="url(#stripes)" stroke="${COLORS.grassLine}" stroke-width="2"/>
+      <line x1="10" y1="${H/2}" x2="${W-10}" y2="${H/2}" stroke="rgba(255,255,255,0.5)" stroke-width="1.3" stroke-dasharray="4 4"/>
+      <circle cx="${W/2}" cy="${H/2}" r="34" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.3"/>
+      <rect x="${W/2-55}" y="6" width="110" height="34" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.3"/>
+      <rect x="${W/2-55}" y="${H-40}" width="110" height="34" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.3"/>
       ${pins}
     </svg>`;
   }
