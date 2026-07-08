@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EL-CLASİCO — Kadro Kurulum</title>
+<title>El-Clasico — Kadro Kurulum</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Teko:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -565,7 +565,7 @@
   <div class="hero-glow"></div>
   <div class="wrap">
     <div class="eyebrow"><span class="dot"></span> HAFTALIK ŞİRKET MAÇI</div>
-    <h1 class="title">EL-CLASİCO<span>.</span></h1>
+    <h1 class="title">El-Clasico<span>.</span></h1>
     <p class="hero-sub">Oyuncuları ekle, mevkisini ve formunu gir; sistem her hafta dengeli iki takımı saniyeler içinde sahaya çıkarsın.</p>
     <div class="hero-stats">
       <div class="hero-stat"><b id="statCount">0</b><span>Kayıtlı Oyuncu</span></div>
@@ -1268,14 +1268,14 @@
     const teamA = [], teamB = [];
     const countA = {}, countB = {};
     let sumA = 0, sumB = 0;
-    const bench = [];
+    let pool = []; // kendi mevkisinde yer bulamayan / açık kalan oyuncular
 
     POS_ORDER.forEach(pos => {
       const cap = caps[pos] || 0;
       const group = attending.filter(p => p.mevki === pos).sort((a,b) => rating(b)-rating(a));
       const playingCount = Math.min(cap*2, group.length);
       const playingGroup = group.slice(0, playingCount);
-      bench.push(...group.slice(playingCount));
+      pool.push(...group.slice(playingCount));
 
       playingGroup.forEach(p => {
         const aRoom = (countA[pos]||0) < cap;
@@ -1287,19 +1287,46 @@
         else target = null;
         if(target==='A'){ teamA.push(p); countA[pos]=(countA[pos]||0)+1; sumA += rating(p); }
         else if(target==='B'){ teamB.push(p); countB[pos]=(countB[pos]||0)+1; sumB += rating(p); }
-        else bench.push(p);
+        else pool.push(p);
       });
     });
-    return { teamA, teamB, bench };
+
+    // Boş kalan slotları, ilgili yeteneğe göre en uygun oyuncuyla doldur — kimse dışarıda kalmasın
+    function sortPoolForPosition(pos){
+      if(pos === 'Kaleci'){
+        // Kalede en düşük genel puanlı feda edilsin, güçlü oyuncu sahada kalsın
+        pool.sort((a,b) => rating(a) - rating(b));
+      } else {
+        const key = pos === 'Defans' ? 'savunma' : pos === 'Forvet' ? 'sut' : 'pas';
+        pool.sort((a,b) => b[key] - a[key]);
+      }
+    }
+    function fillShortfalls(team, countObj, teamKey){
+      POS_ORDER.forEach(pos => {
+        const cap = caps[pos] || 0;
+        while((countObj[pos]||0) < cap && pool.length > 0){
+          sortPoolForPosition(pos);
+          const candidate = pool.shift();
+          if(candidate.mevki !== pos) candidate.oynadigiPozisyon = pos;
+          team.push(candidate);
+          countObj[pos] = (countObj[pos]||0) + 1;
+          if(teamKey==='A') sumA += rating(candidate); else sumB += rating(candidate);
+        }
+      });
+    }
+    fillShortfalls(teamA, countA, 'A');
+    fillShortfalls(teamB, countB, 'B');
+
+    return { teamA, teamB, bench: pool };
   }
 
-  // Kaleci yoksa, takımdaki en düşük puanlı saha oyuncusunu geçici kaleci yapar
+  // Kaleci yoksa (serbest modda), takımdaki en düşük puanlı saha oyuncusunu geçici kaleci yapar
   function assignMakeshiftKeeper(team){
     if(team.length === 0) return;
-    const hasKeeper = team.some(p => p.mevki === 'Kaleci');
+    const hasKeeper = team.some(p => effPos(p) === 'Kaleci');
     if(hasKeeper) return;
     const candidate = team.slice().sort((a,b) => rating(a)-rating(b))[0];
-    candidate.geciciKaleci = true;
+    candidate.oynadigiPozisyon = 'Kaleci';
   }
 
   async function saveMatchRecord(record){
@@ -1462,7 +1489,7 @@
         ${team.slice().sort((a,b)=>rating(b)-rating(a)).map(p => `
           <span class="mini-chip profile-trigger" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[effPos(p)]}"></span>
-            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.geciciKaleci ? ' 🧤' : ''}
+            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.oynadigiPozisyon === 'Kaleci' ? ' 🧤' : (p.oynadigiPozisyon ? ' ↔' : '')}
           </span>`).join('')}
         ${team.length < N ? `<span class="mini-chip" style="border-style:dashed; color:${COLORS.muted}">⚠ ${N-team.length} eksik</span>` : ''}
       </div>
@@ -1510,7 +1537,7 @@
         <button class="profile-close">✕</button>
         <div class="profile-avatar">${p.foto ? `<img src="${p.foto}">` : initials(p)}</div>
         <div class="profile-name">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</div>
-        <div class="profile-pos">${p.geciciKaleci ? '🧤 Kaleci (geçici)' : p.mevki}</div>
+        <div class="profile-pos">${p.oynadigiPozisyon ? `${p.mevki} · bu maçta ${p.oynadigiPozisyon}${p.oynadigiPozisyon==='Kaleci' ? ' 🧤' : ' ↔'}` : p.mevki}</div>
         <div class="profile-overall">${fmt1(rating(p))}</div>
         <div class="p-bars" style="margin-top:14px; width:100%;">
           ${bar('PAS', p.pas)}
@@ -1525,7 +1552,7 @@
   }
 
   // ---------- pitch svg ----------
-  function effPos(p){ return p.geciciKaleci ? 'Kaleci' : p.mevki; }
+  function effPos(p){ return p.oynadigiPozisyon || p.mevki; }
 
   function pitchSvg(team){
     const W = 300, H = 420;
@@ -1549,8 +1576,9 @@
         else x = margin + i * ((W - margin*2) / (group.length-1));
         const clipId = 'clip_' + p.id;
         const ringColor = POS_COLOR[pos];
-        const dash = p.geciciKaleci ? ' stroke-dasharray="3 2"' : '';
-        const badge = p.geciciKaleci ? `<text x="${x+13}" y="${y-11}" text-anchor="middle" font-size="10">🧤</text>` : '';
+        const dash = p.oynadigiPozisyon ? ' stroke-dasharray="3 2"' : '';
+        const badgeIcon = p.oynadigiPozisyon === 'Kaleci' ? '🧤' : (p.oynadigiPozisyon ? '↔' : '');
+        const badge = badgeIcon ? `<text x="${x+13}" y="${y-11}" text-anchor="middle" font-size="10">${badgeIcon}</text>` : '';
         if(p.foto){
           pins += `
             <g class="pin" data-pid="${p.id}" style="cursor:pointer;">
