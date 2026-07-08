@@ -493,25 +493,34 @@
   }
   .mini-dot{ width:6px; height:6px; border-radius:50%; }
   .mini-chip.selected{ border-color: var(--lime); box-shadow: 0 0 0 2px rgba(214,255,63,0.3); }
-  .pay-toggle{
-    background: rgba(255,77,109,0.12);
-    border: 1.5px solid var(--coral);
-    color: var(--coral);
-    width: 26px; height: 26px;
-    min-width: 26px;
-    border-radius: 50%;
-    display:inline-flex; align-items:center; justify-content:center;
-    font-size: 13px; font-weight:700;
-    margin-left: 6px;
-    cursor: pointer;
-    transition: transform .15s ease, background .15s ease;
+  .payment-table-block{
+    margin-top: 18px;
+    background: var(--surface);
+    border: 1px solid rgba(245,247,250,0.08);
+    border-radius: var(--radius);
+    padding: 18px 20px;
   }
-  .pay-toggle.paid{
-    background: var(--lime);
-    border-color: var(--lime);
-    color: var(--bg-2);
+  .payment-table-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .payment-table-head h4{ font-family:'Teko', sans-serif; font-size:20px; font-weight:600; margin:0; color: var(--chalk); }
+  .payment-table-wrap{ overflow-x:auto; }
+  .payment-table{ width:100%; border-collapse: collapse; font-size:13.5px; }
+  .payment-table th{
+    text-align:left; font-family:'JetBrains Mono', monospace; font-size:10.5px;
+    letter-spacing:.5px; text-transform:uppercase; color: var(--muted);
+    padding: 6px 10px; border-bottom: 1px solid var(--line);
   }
-  .pay-toggle:hover{ transform: scale(1.18); }
+  .payment-table td{ padding: 8px 10px; border-bottom: 1px solid rgba(245,247,250,0.06); color: var(--chalk); }
+  .payment-table tr:last-child td{ border-bottom:none; }
+  .payment-table td.team-cell{ color: var(--muted); font-size:12.5px; }
+  .pay-pill{
+    font-family:'JetBrains Mono', monospace; font-size:11.5px; font-weight:700;
+    padding: 5px 12px; border-radius:999px;
+    background: rgba(255,77,109,0.12); border:1px solid var(--coral); color: var(--coral);
+    cursor:pointer; transition: transform .15s ease, background .15s ease;
+  }
+  .pay-pill.paid{ background: var(--lime); border-color: var(--lime); color: var(--bg-2); }
+  .pay-pill:hover:not(:disabled){ transform: scale(1.05); }
+  .pay-pill:disabled{ cursor: default; opacity: 0.9; }
 
   .btn-manual-edit{
     display:inline-flex; align-items:center; gap:8px;
@@ -607,7 +616,7 @@
   <div class="hero-glow"></div>
   <div class="wrap">
     <div class="eyebrow"><span class="dot"></span> HAFTALIK ŞİRKET MAÇI</div>
-    <h1 class="title">El Clasico<span>.</span></h1>
+    <h1 class="title">EL CLASICO<span>.</span></h1>
     <p class="hero-sub">Oyuncuları ekle, mevkisini ve formunu gir; sistem her hafta dengeli iki takımı saniyeler içinde sahaya çıkarsın.</p>
     <div class="hero-stats">
       <div class="hero-stat"><b id="statCount">0</b><span>Kayıtlı Oyuncu</span></div>
@@ -1490,13 +1499,14 @@
         ${teamBlock('b', record.adiB || 'TAKIM B', record.teamB, record.format, record)}
       </div>
       ${record.bench && record.bench.length ? benchBlock(record.bench) : ''}
+      ${paymentTableBlock(record)}
     `;
     bindResultNav(record.tarih);
     bindTeamNameEdit(record);
     bindLockToggle(record);
     bindProfileTriggers();
     bindManualEditToggle();
-    bindPaidToggles();
+    bindPaymentTable();
   }
 
   function bindTeamNameEdit(record){
@@ -1549,7 +1559,6 @@
           <span class="mini-chip profile-trigger${p.id===selectedSwapId ? ' selected' : ''}" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[effPos(p)]}"></span>
             ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.oynadigiPozisyon === 'Kaleci' ? ' 🧤' : (p.oynadigiPozisyon ? ' ↔' : '')}
-            ${unlocked ? `<button class="pay-toggle${p.odedi ? ' paid' : ''}" data-pid="${p.id}" title="Saha parası ${p.odedi ? 'ödendi' : 'ödenmedi'}">${p.odedi ? '✓' : '₺'}</button>` : ''}
           </span>`).join('')}
         ${team.length < N ? `<span class="mini-chip" style="border-style:dashed; color:${COLORS.muted}">⚠ ${N-team.length} eksik</span>` : ''}
       </div>
@@ -1564,7 +1573,6 @@
           <span class="mini-chip profile-trigger${p.id===selectedSwapId ? ' selected' : ''}" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[p.mevki]}"></span>
             ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}
-            ${unlocked ? `<button class="pay-toggle${p.odedi ? ' paid' : ''}" data-pid="${p.id}" title="Saha parası ${p.odedi ? 'ödendi' : 'ödenmedi'}">${p.odedi ? '✓' : '₺'}</button>` : ''}
           </span>`).join('')}
       </div>
     </div>`;
@@ -1637,12 +1645,38 @@
     displayRecord(currentRecord);
   }
 
-  function bindPaidToggles(){
-    $$('.pay-toggle').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        togglePaid(btn.dataset.pid);
-      });
+  function paymentTableBlock(record){
+    const rows = [
+      ...record.teamA.map(p => ({ p, ekip: record.adiA || 'TAKIM A' })),
+      ...record.teamB.map(p => ({ p, ekip: record.adiB || 'TAKIM B' })),
+      ...(record.bench||[]).map(p => ({ p, ekip: 'Yedek' }))
+    ];
+    const paidCount = rows.filter(r => r.p.odedi).length;
+    return `<div class="payment-table-block">
+      <div class="payment-table-head">
+        <h4>💵 Saha Parası Takibi</h4>
+        <span class="balance-tag">${paidCount}/${rows.length} ödedi</span>
+      </div>
+      <div class="payment-table-wrap">
+        <table class="payment-table">
+          <thead><tr><th>Oyuncu</th><th>Takım</th><th>Durum</th></tr></thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td>${escapeHtml(r.p.ad)} ${escapeHtml(r.p.soyad)}</td>
+                <td class="team-cell">${escapeHtml(r.ekip)}</td>
+                <td><button class="pay-pill${r.p.odedi ? ' paid' : ''}" data-pid="${r.p.id}" ${unlocked ? '' : 'disabled'}>${r.p.odedi ? '✓ Ödendi' : '₺ Bekliyor'}</button></td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  function bindPaymentTable(){
+    $$('.pay-pill').forEach(btn => {
+      if(btn.disabled) return;
+      btn.addEventListener('click', () => togglePaid(btn.dataset.pid));
     });
   }
 
@@ -1777,6 +1811,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v17 · ödeme ikonu büyütüldü</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v19 · El Clasico başlığı + şifre korundu</div>
 </body>
 </html>
