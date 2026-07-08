@@ -430,7 +430,7 @@
   }
   .format-group{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
   .format-label{ font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color: var(--muted); }
-  .format-chips{ display:flex; gap:6px; }
+  .format-chips{ display:flex; gap:6px; flex-wrap:wrap; }
   .fchip{
     font-family:'Teko', sans-serif; font-size: 18px; font-weight:600;
     padding: 6px 16px;
@@ -514,6 +514,49 @@
   input[type="file"]{ display:none; }
 
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+
+  /* ================= MOBİL (telefon) ================= */
+  @media (max-width: 640px){
+    .wrap{ padding: 0 16px; }
+    .hero{ padding: 36px 0 24px; }
+    .hero-stats{ gap: 22px; }
+    .hero-stat b{ font-size: 32px; }
+    .panel{ padding: 16px; }
+
+    .control-bar{
+      flex-direction: column;
+      align-items: stretch;
+      padding: 16px;
+      gap: 14px;
+    }
+    .format-group{ width: 100%; justify-content: flex-start; }
+    #matchDate{ min-width: 0; flex: 1 1 120px; }
+    #matchHistorySelect{ max-width: none; flex: 1 1 140px; }
+    .cta-group{
+      flex-direction: column;
+      align-items: stretch !important;
+      width: 100%;
+    }
+    #attendCounter{ text-align: center; }
+    .btn-generate{ width: 100%; text-align: center; }
+
+    .roster-head{ flex-direction: column; align-items: flex-start; }
+    .roster-list{ grid-template-columns: 1fr; }
+
+    .results-head{ flex-direction: column; align-items: flex-start; gap: 10px; }
+    .results-head > div{ width: 100%; }
+    h1.title{ font-size: clamp(38px, 15vw, 60px); }
+
+    .btn-ghost{ padding: 10px 14px; }
+    input[type="text"], input[type="date"], select{ font-size: 16px; } /* iOS zoom önleme */
+
+    .team-name-input{ width: 120px; }
+    .p-overall{ font-size: 22px; }
+  }
+  @media (max-width: 380px){
+    .format-chips .fchip{ font-size: 15px; padding: 5px 11px; }
+    .hero-stats{ gap: 14px; }
+  }
 </style>
 </head>
 <body>
