@@ -363,6 +363,59 @@
   .empty{
     text-align:center; padding: 40px 20px; color: var(--muted);
   }
+
+  .team-name-input{
+    font-family:'Teko', sans-serif; font-size: 24px; font-weight:600;
+    background: transparent; border: none; border-bottom: 1px dashed var(--line);
+    color: inherit; padding: 0 2px 2px; width: 150px; max-width:40vw;
+  }
+  .team-name-input:focus{ outline:none; border-bottom-color: var(--lime); }
+
+  /* Avatar hover zoom (oyuncu havuzu) */
+  .p-avatar{ position: relative; z-index: 1; }
+  .p-avatar:hover{ overflow: visible; z-index: 30; }
+  .p-avatar img{ transition: transform .2s ease; }
+  .p-avatar:hover img{
+    transform: scale(2.6);
+    border-radius: 50%;
+    box-shadow: 0 10px 28px rgba(0,0,0,0.55), 0 0 0 2px var(--lime);
+  }
+
+  /* Oyuncu profil kartı (modal) */
+  .profile-overlay{
+    position: fixed; inset:0; z-index:100;
+    background: rgba(5,6,11,0.72);
+    backdrop-filter: blur(3px);
+    display:flex; align-items:center; justify-content:center;
+    padding: 24px;
+  }
+  .profile-card{
+    position: relative;
+    width: 260px; max-width: 90vw;
+    background: linear-gradient(180deg, var(--surface), var(--surface-2) 140%);
+    border: 1px solid rgba(245,247,250,0.1);
+    border-radius: var(--radius);
+    padding: 28px 20px 20px;
+    display:flex; flex-direction:column; align-items:center; text-align:center;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+  .profile-close{
+    position:absolute; top:10px; right:10px;
+    width:26px; height:26px; border-radius:50%;
+    background: transparent; color: var(--muted); font-size:15px;
+  }
+  .profile-close:hover{ background: rgba(255,77,109,0.15); color: var(--coral); }
+  .profile-avatar{
+    width:80px; height:80px; border-radius:50%;
+    background: var(--surface-2); border: 3px solid var(--lime);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Teko', sans-serif; font-size:30px; color: var(--chalk);
+    overflow:hidden; margin-bottom:12px;
+  }
+  .profile-avatar img{ width:100%; height:100%; object-fit:cover; }
+  .profile-name{ font-family:'Teko', sans-serif; font-size:24px; color: var(--chalk); }
+  .profile-pos{ font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+  .profile-overall{ font-family:'Teko', sans-serif; font-size:38px; font-weight:700; color: var(--lime); margin-top:8px; }
   .empty svg{ opacity:.5; margin-bottom: 10px; }
   .empty b{ display:block; color: var(--chalk); font-family:'Teko',sans-serif; font-size:22px; margin-bottom:4px; }
 
@@ -596,7 +649,8 @@
         <button class="fchip" data-n="9">9x9</button>
       </div>
     </div>
-    <div class="cta-group">
+    <div class="cta-group" style="flex-direction:column; align-items:flex-end; gap:4px;">
+      <span id="attendCounter" style="font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--muted);"></span>
       <button class="btn-generate" id="btnGenerate">Kadroları Oluştur →</button>
     </div>
   </div>
@@ -628,6 +682,7 @@
   let unlocked = false;
   let pendingPhoto = null;
   let allMatches = []; // Firestore'dan çekilen geçmiş/gelecek maç kayıtları, tarihe göre sıralı
+  let currentRecord = null; // ekranda gösterilen maç kaydı (profil modalı için)
   // ====== FIREBASE AYARI — BURAYI DOLDUR ======
   // console.firebase.google.com adresinden ücretsiz bir proje oluştur,
   // Firestore Database'i etkinleştir, sonra Project Settings > Genel >
@@ -897,7 +952,22 @@
     if(!btn) return;
     activeFormat = +btn.dataset.n;
     $$('#formatChips .fchip').forEach(c => c.classList.toggle('active', c===btn));
+    updateAttendCounter();
   });
+
+  function updateAttendCounter(){
+    const el = $('#attendCounter');
+    if(!el) return;
+    const attending = players.filter(p => p.gelecek).length;
+    const need = activeFormat * 2;
+    if(attending >= need){
+      el.textContent = `${attending} aktif oyuncu · ${need} gerekli (${attending-need} yedek)`;
+      el.style.color = 'var(--muted)';
+    } else {
+      el.textContent = `${attending} aktif oyuncu · ${need-attending} kişi eksik`;
+      el.style.color = 'var(--coral)';
+    }
+  }
 
   // ---------- render roster ----------
   function renderRoster(){
@@ -923,6 +993,7 @@
     $('#statAvg').textContent = players.length ? fmt1(players.reduce((s,p)=>s+rating(p),0)/players.length) : '—';
     $('#statTotal').textContent = players.length;
     $('#statAttending').textContent = players.filter(p=>p.gelecek).length;
+    updateAttendCounter();
 
     $$('.p-edit').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -1009,7 +1080,13 @@
       renderNoResults('Kadro oluşturmak için “bu hafta geliyor” işaretli en az birkaç oyuncu olmalı.');
       return;
     }
-    if(allMatches.find(m => m.id === dateStr)){
+    const existing = allMatches.find(m => m.id === dateStr);
+    if(existing && existing.kilitli){
+      alert('Bu tarihteki kadro kilitlenmiş, değiştirilemez. Önce kilidini açman gerekiyor.');
+      displayRecord(existing);
+      return;
+    }
+    if(existing){
       if(!confirm(`${formatDateLabel(dateStr)} için zaten kayıtlı bir kadro var. Üzerine yazmak istiyor musun?`)) return;
     }
 
@@ -1043,16 +1120,31 @@
       });
     });
 
+    assignMakeshiftKeeper(teamA);
+    assignMakeshiftKeeper(teamB);
+
     const record = {
       id: dateStr,
       tarih: dateStr,
       format: N,
+      adiA: (existing && existing.adiA) || 'TAKIM A',
+      adiB: (existing && existing.adiB) || 'TAKIM B',
+      kilitli: false,
       teamA: JSON.parse(JSON.stringify(teamA)),
       teamB: JSON.parse(JSON.stringify(teamB)),
       bench: JSON.parse(JSON.stringify(bench)),
       olusturulma: Date.now()
     };
     saveMatchRecord(record);
+  }
+
+  // Kaleci yoksa, takımdaki en düşük puanlı saha oyuncusunu geçici kaleci yapar
+  function assignMakeshiftKeeper(team){
+    if(team.length === 0) return;
+    const hasKeeper = team.some(p => p.mevki === 'Kaleci');
+    if(hasKeeper) return;
+    const candidate = team.slice().sort((a,b) => rating(a)-rating(b))[0];
+    candidate.geciciKaleci = true;
   }
 
   async function saveMatchRecord(record){
@@ -1136,39 +1228,86 @@
   }
 
   function displayRecord(record){
+    currentRecord = record;
     const diff = Math.abs(avg(record.teamA) - avg(record.teamB));
     const balanceLabel = diff < 0.3 ? 'Çok Dengeli' : diff < 0.8 ? 'Dengeli' : 'Orta Dengeli';
     const wrap = $('#resultsWrap');
+    const lockedBadge = record.kilitli ? `<span class="balance-tag" style="border-color:var(--coral); color:var(--coral);">🔒 Kilitli</span>` : '';
     wrap.innerHTML = `
       <div class="results-head">
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <button class="btn-ghost" id="btnPrevMatch">◀</button>
           <h2>${formatDateLabel(record.tarih)} — ${record.format}x${record.format}</h2>
           <button class="btn-ghost" id="btnNextMatch">▶</button>
+          ${unlocked ? `<button class="btn-ghost" id="btnToggleLock">${record.kilitli ? '🔓 Kilidi Aç' : '🔒 Kilitle'}</button>` : ''}
         </div>
-        <span class="balance-tag">${balanceLabel} · fark ${fmt1(diff)}</span>
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${lockedBadge}
+          <span class="balance-tag">${balanceLabel} · fark ${fmt1(diff)}</span>
+        </div>
       </div>
       <div class="pitches">
-        ${teamBlock('TAKIM A', 'a', record.teamA, record.format)}
-        ${teamBlock('TAKIM B', 'b', record.teamB, record.format)}
+        ${teamBlock('a', record.adiA || 'TAKIM A', record.teamA, record.format, record)}
+        ${teamBlock('b', record.adiB || 'TAKIM B', record.teamB, record.format, record)}
       </div>
       ${record.bench && record.bench.length ? benchBlock(record.bench) : ''}
     `;
     bindResultNav(record.tarih);
+    bindTeamNameEdit(record);
+    bindLockToggle(record);
+    bindProfileTriggers();
   }
 
-  function teamBlock(label, cls, team, N){
+  function bindTeamNameEdit(record){
+    $$('.team-name-input').forEach(inp => {
+      inp.addEventListener('change', async () => {
+        const cls = inp.dataset.cls;
+        const val = inp.value.trim() || (cls==='a' ? 'TAKIM A' : 'TAKIM B');
+        if(cls==='a') record.adiA = val; else record.adiB = val;
+        inp.value = val;
+        await updateRecordFields(record, { adiA: record.adiA, adiB: record.adiB });
+        renderHistorySelect();
+      });
+    });
+  }
+
+  function bindLockToggle(record){
+    const btn = $('#btnToggleLock');
+    if(!btn) return;
+    btn.addEventListener('click', async () => {
+      record.kilitli = !record.kilitli;
+      await updateRecordFields(record, { kilitli: record.kilitli });
+      displayRecord(record);
+    });
+  }
+
+  async function updateRecordFields(record, fields){
+    if(!firebaseReady) return;
+    try{
+      await db.collection('macGecmisi').doc(record.id).update(fields);
+      const idx = allMatches.findIndex(m => m.id === record.id);
+      if(idx >= 0) Object.assign(allMatches[idx], fields);
+    }catch(err){
+      console.error('Kadro güncellenemedi:', err);
+    }
+  }
+
+  function teamBlock(cls, name, team, N, record){
+    const editable = unlocked && !record.kilitli;
+    const nameHtml = editable
+      ? `<input type="text" class="team-name-input" data-cls="${cls}" value="${escapeHtml(name)}">`
+      : `<h3>${escapeHtml(name)}</h3>`;
     return `<div class="team-block">
       <div class="team-head ${cls}">
-        <h3>${label}</h3>
+        ${nameHtml}
         <div class="team-avg">Ort. Güç<br><b>${fmt1(avg(team))}</b></div>
       </div>
       <div class="pitch-wrap">${pitchSvg(team)}</div>
       <div class="roster-mini">
         ${team.slice().sort((a,b)=>rating(b)-rating(a)).map(p => `
-          <span class="mini-chip">
-            <span class="mini-dot" style="background:${POS_COLOR[p.mevki]}"></span>
-            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}
+          <span class="mini-chip profile-trigger" data-pid="${p.id}">
+            <span class="mini-dot" style="background:${POS_COLOR[effPos(p)]}"></span>
+            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.geciciKaleci ? ' 🧤' : ''}
           </span>`).join('')}
         ${team.length < N ? `<span class="mini-chip" style="border-style:dashed; color:${COLORS.muted}">⚠ ${N-team.length} eksik</span>` : ''}
       </div>
@@ -1180,7 +1319,7 @@
       <h4>Yedekler / Fazla Oyuncular (${bench.length})</h4>
       <div class="roster-mini" style="padding:0;">
         ${bench.slice().sort((a,b)=>rating(b)-rating(a)).map(p => `
-          <span class="mini-chip">
+          <span class="mini-chip profile-trigger" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[p.mevki]}"></span>
             ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}
           </span>`).join('')}
@@ -1188,7 +1327,51 @@
     </div>`;
   }
 
+  // ---------- oyuncu profil kartı ----------
+  function findPlayerInRecord(pid){
+    if(!currentRecord) return null;
+    return (currentRecord.teamA||[]).find(p=>p.id===pid)
+      || (currentRecord.teamB||[]).find(p=>p.id===pid)
+      || (currentRecord.bench||[]).find(p=>p.id===pid)
+      || null;
+  }
+
+  function bindProfileTriggers(){
+    $$('.profile-trigger').forEach(chip => {
+      chip.addEventListener('click', () => openProfile(chip.dataset.pid));
+    });
+    $$('.pin').forEach(pin => {
+      pin.addEventListener('click', () => openProfile(pin.dataset.pid));
+    });
+  }
+
+  function openProfile(pid){
+    const p = findPlayerInRecord(pid);
+    if(!p) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'profile-overlay';
+    overlay.innerHTML = `
+      <div class="profile-card">
+        <button class="profile-close">✕</button>
+        <div class="profile-avatar">${p.foto ? `<img src="${p.foto}">` : initials(p)}</div>
+        <div class="profile-name">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</div>
+        <div class="profile-pos">${p.geciciKaleci ? '🧤 Kaleci (geçici)' : p.mevki}</div>
+        <div class="profile-overall">${fmt1(rating(p))}</div>
+        <div class="p-bars" style="margin-top:14px; width:100%;">
+          ${bar('PAS', p.pas)}
+          ${bar('ŞUT', p.sut)}
+          ${bar('KOŞ', p.kosu)}
+          ${bar('SAV', p.savunma)}
+        </div>
+      </div>`;
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+    overlay.querySelector('.profile-close').addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
+  }
+
   // ---------- pitch svg ----------
+  function effPos(p){ return p.geciciKaleci ? 'Kaleci' : p.mevki; }
+
   function pitchSvg(team){
     const W = 300, H = 420;
     const rows = {
@@ -1198,7 +1381,7 @@
       'Forvet': H - 320
     };
     const byPos = {};
-    POS_ORDER.forEach(pos => byPos[pos] = team.filter(p=>p.mevki===pos));
+    POS_ORDER.forEach(pos => byPos[pos] = team.filter(p => effPos(p) === pos));
 
     let pins = '';
     POS_ORDER.forEach(pos => {
@@ -1210,18 +1393,23 @@
         if(group.length===1) x = W/2;
         else x = margin + i * ((W - margin*2) / (group.length-1));
         const clipId = 'clip_' + p.id;
+        const ringColor = POS_COLOR[pos];
+        const dash = p.geciciKaleci ? ' stroke-dasharray="3 2"' : '';
+        const badge = p.geciciKaleci ? `<text x="${x+13}" y="${y-11}" text-anchor="middle" font-size="10">🧤</text>` : '';
         if(p.foto){
           pins += `
-            <g>
+            <g class="pin" data-pid="${p.id}" style="cursor:pointer;">
               <defs><clipPath id="${clipId}"><circle cx="${x}" cy="${y}" r="16"/></clipPath></defs>
               <image href="${p.foto}" x="${x-16}" y="${y-16}" width="32" height="32" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
-              <circle cx="${x}" cy="${y}" r="16" fill="none" stroke="${POS_COLOR[pos]}" stroke-width="2.5"/>
+              <circle cx="${x}" cy="${y}" r="16" fill="none" stroke="${ringColor}" stroke-width="2.5"${dash}/>
+              ${badge}
               <text x="${x}" y="${y+30}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="${COLORS.muted}">${escapeHtml(p.soyad)}</text>
             </g>`;
         } else {
           pins += `
-            <g>
-              <circle cx="${x}" cy="${y}" r="17" fill="${COLORS.surface2}" stroke="${POS_COLOR[pos]}" stroke-width="2.5"/>
+            <g class="pin" data-pid="${p.id}" style="cursor:pointer;">
+              <circle cx="${x}" cy="${y}" r="17" fill="${COLORS.surface2}" stroke="${ringColor}" stroke-width="2.5"${dash}/>
+              ${badge}
               <text x="${x}" y="${y+5}" text-anchor="middle" font-family="Teko, sans-serif" font-size="15" font-weight="600" fill="${COLORS.chalk}">${initials(p)}</text>
               <text x="${x}" y="${y+30}" text-anchor="middle" font-family="Inter, sans-serif" font-size="9" fill="${COLORS.muted}">${escapeHtml(p.soyad)}</text>
             </g>`;
