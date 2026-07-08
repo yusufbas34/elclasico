@@ -692,6 +692,13 @@
         <button class="fchip" data-n="9">9x9</button>
       </div>
     </div>
+    <div class="format-group">
+      <span class="format-label">Diziliş</span>
+      <select id="formationSelect" style="max-width:190px;">
+        <option value="">Serbest (otomatik dengele)</option>
+      </select>
+      <input type="text" id="customFormation" placeholder="ör. 3-2-1" style="display:none; max-width:100px; text-align:center;">
+    </div>
     <div class="cta-group" style="flex-direction:column; align-items:flex-end; gap:4px;">
       <span id="attendCounter" style="font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--muted);"></span>
       <button class="btn-generate" id="btnGenerate">Kadroları Oluştur →</button>
@@ -990,19 +997,70 @@
   });
 
   // ---------- format chips ----------
+  // ---------- diziliş (formasyon) ----------
+  const FORMATIONS = {
+    5:  ['2-1-1', '1-2-1'],
+    6:  ['2-2-1', '2-1-2', '3-1-1'],
+    7:  ['3-2-1', '2-3-1', '2-2-2'],
+    8:  ['3-3-1', '3-2-2', '2-3-2'],
+    9:  ['3-3-2', '3-2-3', '2-3-3']
+  };
+
+  function renderFormationOptions(N){
+    const outfield = N - 1; // 1 kaleci düşülüyor
+    const presets = FORMATIONS[outfield] || [];
+    const sel = $('#formationSelect');
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">Serbest (otomatik dengele)</option>' +
+      presets.map(f => `<option value="${f}">${f} + K (${N} kişi)</option>`).join('') +
+      '<option value="custom">Özel (kendin gir)</option>';
+    if([...sel.options].some(o => o.value === prev)) sel.value = prev;
+    $('#customFormation').style.display = sel.value === 'custom' ? 'inline-block' : 'none';
+  }
+
+  function parseFormation(str){
+    const parts = (str||'').split('-').map(n => parseInt(n.trim(), 10));
+    if(parts.length !== 3 || parts.some(n => isNaN(n) || n < 0)) return null;
+    return { 'Defans': parts[0], 'Orta Saha': parts[1], 'Forvet': parts[2] };
+  }
+
+  function getSelectedFormationStr(){
+    const val = $('#formationSelect').value;
+    if(!val) return null;
+    if(val === 'custom') return $('#customFormation').value.trim();
+    return val;
+  }
+
+  $('#formationSelect').addEventListener('change', () => {
+    $('#customFormation').style.display = $('#formationSelect').value === 'custom' ? 'inline-block' : 'none';
+    updateAttendCounter();
+  });
+  $('#customFormation').addEventListener('input', updateAttendCounter);
+
   $('#formatChips').addEventListener('click', e => {
     const btn = e.target.closest('.fchip');
     if(!btn) return;
     activeFormat = +btn.dataset.n;
     $$('#formatChips .fchip').forEach(c => c.classList.toggle('active', c===btn));
+    renderFormationOptions(activeFormat);
     updateAttendCounter();
   });
+
+  function effectiveTeamSize(){
+    const formationStr = getSelectedFormationStr();
+    if(formationStr){
+      const f = parseFormation(formationStr);
+      if(f) return 1 + f['Defans'] + f['Orta Saha'] + f['Forvet'];
+    }
+    return activeFormat;
+  }
 
   function updateAttendCounter(){
     const el = $('#attendCounter');
     if(!el) return;
     const attending = players.filter(p => p.gelecek).length;
-    const need = activeFormat * 2;
+    const N = effectiveTeamSize();
+    const need = N * 2;
     if(attending >= need){
       el.textContent = `${attending} aktif oyuncu · ${need} gerekli (${attending-need} yedek)`;
       el.style.color = 'var(--muted)';
@@ -1116,7 +1174,6 @@
   }
 
   function generateTeams(){
-    const N = activeFormat;
     const dateStr = $('#matchDate').value || todayStr();
     const attending = players.filter(p => p.gelecek);
     if(attending.length < 2){
@@ -1133,6 +1190,47 @@
       if(!confirm(`${formatDateLabel(dateStr)} için zaten kayıtlı bir kadro var. Üzerine yazmak istiyor musun?`)) return;
     }
 
+    const formationStr = getSelectedFormationStr();
+    const formation = formationStr ? parseFormation(formationStr) : null;
+    if(formationStr && !formation){
+      alert('Diziliş formatı hatalı. Örnek: 3-2-1 (Defans-OrtaSaha-Forvet)');
+      return;
+    }
+
+    let teamA, teamB, bench, N;
+
+    if(formation){
+      N = 1 + formation['Defans'] + formation['Orta Saha'] + formation['Forvet'];
+      const caps = { 'Kaleci': 1, 'Defans': formation['Defans'], 'Orta Saha': formation['Orta Saha'], 'Forvet': formation['Forvet'] };
+      const result = buildTeamsByFormation(attending, caps);
+      teamA = result.teamA; teamB = result.teamB; bench = result.bench;
+    } else {
+      N = activeFormat;
+      const result = buildTeamsFree(attending, N);
+      teamA = result.teamA; teamB = result.teamB; bench = result.bench;
+    }
+
+    assignMakeshiftKeeper(teamA);
+    assignMakeshiftKeeper(teamB);
+
+    const record = {
+      id: dateStr,
+      tarih: dateStr,
+      format: N,
+      dizilis: formationStr || null,
+      adiA: (existing && existing.adiA) || 'TAKIM A',
+      adiB: (existing && existing.adiB) || 'TAKIM B',
+      kilitli: false,
+      teamA: JSON.parse(JSON.stringify(teamA)),
+      teamB: JSON.parse(JSON.stringify(teamB)),
+      bench: JSON.parse(JSON.stringify(bench)),
+      olusturulma: Date.now()
+    };
+    saveMatchRecord(record);
+  }
+
+  // Serbest mod: sadece mevki sayısı + toplam güç dengelenir, sabit diziliş yok
+  function buildTeamsFree(attending, N){
     const sorted = attending.slice().sort((a,b)=> rating(b)-rating(a));
     const need = N*2;
     const playing = sorted.slice(0, Math.min(need, sorted.length));
@@ -1143,7 +1241,7 @@
     let sumA = 0, sumB = 0;
 
     POS_ORDER.forEach(pos => {
-      const group = playing.filter(p => p.mevki === pos); // already sorted by rating desc
+      const group = playing.filter(p => p.mevki === pos);
       group.forEach(p => {
         const aFull = teamA.length >= N;
         const bFull = teamB.length >= N;
@@ -1162,23 +1260,37 @@
         else { bench.push(p); }
       });
     });
+    return { teamA, teamB, bench };
+  }
 
-    assignMakeshiftKeeper(teamA);
-    assignMakeshiftKeeper(teamB);
+  // Diziliş modu: her mevki için iki takıma da tam olarak "caps" kadar slot ayrılır
+  function buildTeamsByFormation(attending, caps){
+    const teamA = [], teamB = [];
+    const countA = {}, countB = {};
+    let sumA = 0, sumB = 0;
+    const bench = [];
 
-    const record = {
-      id: dateStr,
-      tarih: dateStr,
-      format: N,
-      adiA: (existing && existing.adiA) || 'TAKIM A',
-      adiB: (existing && existing.adiB) || 'TAKIM B',
-      kilitli: false,
-      teamA: JSON.parse(JSON.stringify(teamA)),
-      teamB: JSON.parse(JSON.stringify(teamB)),
-      bench: JSON.parse(JSON.stringify(bench)),
-      olusturulma: Date.now()
-    };
-    saveMatchRecord(record);
+    POS_ORDER.forEach(pos => {
+      const cap = caps[pos] || 0;
+      const group = attending.filter(p => p.mevki === pos).sort((a,b) => rating(b)-rating(a));
+      const playingCount = Math.min(cap*2, group.length);
+      const playingGroup = group.slice(0, playingCount);
+      bench.push(...group.slice(playingCount));
+
+      playingGroup.forEach(p => {
+        const aRoom = (countA[pos]||0) < cap;
+        const bRoom = (countB[pos]||0) < cap;
+        let target;
+        if(aRoom && bRoom) target = (sumA <= sumB) ? 'A' : 'B';
+        else if(aRoom) target = 'A';
+        else if(bRoom) target = 'B';
+        else target = null;
+        if(target==='A'){ teamA.push(p); countA[pos]=(countA[pos]||0)+1; sumA += rating(p); }
+        else if(target==='B'){ teamB.push(p); countB[pos]=(countB[pos]||0)+1; sumB += rating(p); }
+        else bench.push(p);
+      });
+    });
+    return { teamA, teamB, bench };
   }
 
   // Kaleci yoksa, takımdaki en düşük puanlı saha oyuncusunu geçici kaleci yapar
@@ -1280,7 +1392,7 @@
       <div class="results-head">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <button class="btn-ghost" id="btnPrevMatch">◀</button>
-          <h2>${formatDateLabel(record.tarih)} — ${record.format}x${record.format}</h2>
+          <h2>${formatDateLabel(record.tarih)} — ${record.format} kişi${record.dizilis ? ' · ' + record.dizilis : ''}</h2>
           <button class="btn-ghost" id="btnNextMatch">▶</button>
           ${unlocked ? `<button class="btn-ghost" id="btnToggleLock">${record.kilitli ? '🔓 Kilidi Aç' : '🔒 Kilitle'}</button>` : ''}
         </div>
@@ -1478,6 +1590,7 @@
   }
 
   $('#matchDate').value = todayStr();
+  renderFormationOptions(activeFormat);
   renderLockUI();
   loadPool();
   loadMatchList();
