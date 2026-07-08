@@ -1,6 +1,3 @@
-
-<title>El Clasico — Kadrolay:grid;
-  
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -497,11 +494,46 @@
   .mini-dot{ width:6px; height:6px; border-radius:50%; }
   .mini-chip.selected{ border-color: var(--lime); box-shadow: 0 0 0 2px rgba(214,255,63,0.3); }
   .pay-toggle{
-    background: transparent; border: none; color: var(--muted);
-    font-size: 12px; padding: 0 0 0 4px; line-height: 1; cursor: pointer;
+    background: rgba(255,77,109,0.12);
+    border: 1.5px solid var(--coral);
+    color: var(--coral);
+    width: 26px; height: 26px;
+    min-width: 26px;
+    border-radius: 50%;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size: 13px; font-weight:700;
+    margin-left: 6px;
+    cursor: pointer;
+    transition: transform .15s ease, background .15s ease;
   }
-  .pay-toggle.paid{ color: var(--amber); }
-  .pay-toggle:hover{ transform: scale(1.15); }
+  .pay-toggle.paid{
+    background: var(--lime);
+    border-color: var(--lime);
+    color: var(--bg-2);
+  }
+  .pay-toggle:hover{ transform: scale(1.18); }
+
+  .btn-manual-edit{
+    display:inline-flex; align-items:center; gap:8px;
+    background: rgba(214,255,63,0.14);
+    border: 1.5px solid var(--lime);
+    color: var(--lime);
+    font-weight: 700;
+    font-size: 14px;
+    padding: 11px 20px;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 0 0 0 rgba(214,255,63,0.4);
+    animation: pulseGlow 2.4s ease-in-out infinite;
+  }
+  .btn-manual-edit:hover{ background: rgba(214,255,63,0.24); }
+  .btn-manual-edit.active{
+    background: var(--lime); color: var(--bg-2);
+    animation: none;
+  }
+  @keyframes pulseGlow{
+    0%, 100% { box-shadow: 0 0 0 0 rgba(214,255,63,0.35); }
+    50% { box-shadow: 0 0 0 6px rgba(214,255,63,0); }
+  }
 
   .bench-block{
     margin-top: 18px;
@@ -523,7 +555,7 @@
   .footer-actions{ display:flex; gap:8px; }
   input[type="file"]{ display:none; }
 
-  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
 
   /* ================= MOBİL (telefon) ================= */
   @media (max-width: 640px){
@@ -575,7 +607,7 @@
   <div class="hero-glow"></div>
   <div class="wrap">
     <div class="eyebrow"><span class="dot"></span> HAFTALIK ŞİRKET MAÇI</div>
-    <h1 class="title">MAÇ GÜNÜ<span>.</span></h1>
+    <h1 class="title">El Clasico<span>.</span></h1>
     <p class="hero-sub">Oyuncuları ekle, mevkisini ve formunu gir; sistem her hafta dengeli iki takımı saniyeler içinde sahaya çıkarsın.</p>
     <div class="hero-stats">
       <div class="hero-stat"><b id="statCount">0</b><span>Kayıtlı Oyuncu</span></div>
@@ -685,7 +717,7 @@
   <!-- CONTROL BAR -->
   <div class="control-bar">
     <div class="format-group">
-      <span class="format-label">El Clasico</span>
+      <span class="format-label">Maç Tarihi</span>
       <input type="date" id="matchDate">
       <button class="btn-ghost" id="btnToday">Bugün</button>
       <select id="matchHistorySelect" style="max-width:170px;">
@@ -1440,13 +1472,18 @@
           <h2>${formatDateLabel(record.tarih)} — ${record.format} kişi${record.dizilis ? ' · ' + record.dizilis : ''}</h2>
           <button class="btn-ghost" id="btnNextMatch">▶</button>
           ${unlocked ? `<button class="btn-ghost" id="btnToggleLock">${record.kilitli ? '🔓 Kilidi Aç' : '🔒 Kilitle'}</button>` : ''}
-          ${canEditPlacement ? `<button class="btn-ghost" id="btnManualEdit" style="${manualEditMode ? 'border-color:var(--lime) !important; color:var(--lime);' : ''}">${manualEditMode ? '✓ Yerleştirmeyi Bitir' : '✋ Yerleşimi Düzenle'}</button>` : ''}
         </div>
         <div style="display:flex; align-items:center; gap:10px;">
           ${lockedBadge}
           <span class="balance-tag">${balanceLabel} · fark ${fmt1(diff)}</span>
         </div>
       </div>
+      ${canEditPlacement ? `
+      <div style="margin-bottom:16px;">
+        <button class="btn-manual-edit${manualEditMode ? ' active' : ''}" id="btnManualEdit">
+          ${manualEditMode ? '✓ Yerleştirmeyi Bitir' : '✋ Oyuncu Yerlerini Elle Değiştir'}
+        </button>
+      </div>` : ''}
       ${manualBanner}
       <div class="pitches">
         ${teamBlock('a', record.adiA || 'TAKIM A', record.teamA, record.format, record)}
@@ -1512,7 +1549,7 @@
           <span class="mini-chip profile-trigger${p.id===selectedSwapId ? ' selected' : ''}" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[effPos(p)]}"></span>
             ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.oynadigiPozisyon === 'Kaleci' ? ' 🧤' : (p.oynadigiPozisyon ? ' ↔' : '')}
-            ${unlocked ? `<button class="pay-toggle${p.odedi ? ' paid' : ''}" data-pid="${p.id}" title="Saha parası ${p.odedi ? 'ödendi' : 'ödenmedi'}">${p.odedi ? '💰' : '◌'}</button>` : ''}
+            ${unlocked ? `<button class="pay-toggle${p.odedi ? ' paid' : ''}" data-pid="${p.id}" title="Saha parası ${p.odedi ? 'ödendi' : 'ödenmedi'}">${p.odedi ? '✓' : '₺'}</button>` : ''}
           </span>`).join('')}
         ${team.length < N ? `<span class="mini-chip" style="border-style:dashed; color:${COLORS.muted}">⚠ ${N-team.length} eksik</span>` : ''}
       </div>
@@ -1527,7 +1564,7 @@
           <span class="mini-chip profile-trigger${p.id===selectedSwapId ? ' selected' : ''}" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[p.mevki]}"></span>
             ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}
-            ${unlocked ? `<button class="pay-toggle${p.odedi ? ' paid' : ''}" data-pid="${p.id}" title="Saha parası ${p.odedi ? 'ödendi' : 'ödenmedi'}">${p.odedi ? '💰' : '◌'}</button>` : ''}
+            ${unlocked ? `<button class="pay-toggle${p.odedi ? ' paid' : ''}" data-pid="${p.id}" title="Saha parası ${p.odedi ? 'ödendi' : 'ödenmedi'}">${p.odedi ? '✓' : '₺'}</button>` : ''}
           </span>`).join('')}
       </div>
     </div>`;
@@ -1740,6 +1777,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v15 · tam isim + saha parası takibi</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v17 · ödeme ikonu büyütüldü</div>
 </body>
 </html>
