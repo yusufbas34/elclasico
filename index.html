@@ -360,12 +360,6 @@
   }
   #photoPreview img{ width:100%; height:100%; object-fit:cover; }
 
-  details > summary{ list-style:none; }
-  details > summary::-webkit-details-marker{ display:none; }
-  details > summary::before{ content:'▸ '; color:var(--muted); font-size:11px; }
-  details[open] > summary::before{ content:'▾ '; }
-  .payment-table-head h4{ display:inline; }
-
   .empty{
     text-align:center; padding: 40px 20px; color: var(--muted);
   }
@@ -679,33 +673,30 @@
         </select>
       </div>
 
-      <details id="baseStatsDetails">
-        <summary style="cursor:pointer; color:var(--muted); font-size:12.5px; margin-bottom:10px;">🎯 Detaylı Puanlar (opsiyonel — maç bazlı puanlarla zaten kendiliğinden gelişir)</summary>
-        <div class="stat-row">
-          <div class="stat-row-head"><label for="fPas">Pas</label><span class="stat-val" id="vPas">6.0</span></div>
-          <input type="range" id="fPas" min="1" max="10" step="0.1" value="6">
-        </div>
-        <div class="stat-row">
-          <div class="stat-row-head"><label for="fSut">Şut</label><span class="stat-val" id="vSut">6.0</span></div>
-          <input type="range" id="fSut" min="1" max="10" step="0.1" value="6">
-        </div>
-        <div class="stat-row">
-          <div class="stat-row-head"><label for="fKosu">Koşu</label><span class="stat-val" id="vKosu">6.0</span></div>
-          <input type="range" id="fKosu" min="1" max="10" step="0.1" value="6">
-        </div>
-        <div class="stat-row">
-          <div class="stat-row-head"><label for="fSavunma">Savunma</label><span class="stat-val" id="vSavunma">6.0</span></div>
-          <input type="range" id="fSavunma" min="1" max="10" step="0.1" value="6">
-        </div>
-        <div class="stat-row">
-          <div class="stat-row-head"><label for="fFizik">Fizik</label><span class="stat-val" id="vFizik">6.0</span></div>
-          <input type="range" id="fFizik" min="1" max="10" step="0.1" value="6">
-        </div>
-        <div class="stat-row">
-          <div class="stat-row-head"><label for="fTopKontrolu">Top Kontrolü</label><span class="stat-val" id="vTopKontrolu">6.0</span></div>
-          <input type="range" id="fTopKontrolu" min="1" max="10" step="0.1" value="6">
-        </div>
-      </details>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fPas">Pas</label><span class="stat-val" id="vPas">6.0</span></div>
+        <input type="range" id="fPas" min="1" max="10" step="0.1" value="6">
+      </div>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fSut">Şut</label><span class="stat-val" id="vSut">6.0</span></div>
+        <input type="range" id="fSut" min="1" max="10" step="0.1" value="6">
+      </div>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fKosu">Koşu</label><span class="stat-val" id="vKosu">6.0</span></div>
+        <input type="range" id="fKosu" min="1" max="10" step="0.1" value="6">
+      </div>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fSavunma">Savunma</label><span class="stat-val" id="vSavunma">6.0</span></div>
+        <input type="range" id="fSavunma" min="1" max="10" step="0.1" value="6">
+      </div>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fFizik">Fizik</label><span class="stat-val" id="vFizik">6.0</span></div>
+        <input type="range" id="fFizik" min="1" max="10" step="0.1" value="6">
+      </div>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fTopKontrolu">Top Kontrolü</label><span class="stat-val" id="vTopKontrolu">6.0</span></div>
+        <input type="range" id="fTopKontrolu" min="1" max="10" step="0.1" value="6">
+      </div>
 
       <button class="btn-primary" id="btnAdd">+ Kadroya Ekle</button>
       <button class="btn-ghost" id="btnCancelEdit" style="display:none; margin-top:8px; width:100%; justify-content:center;">İptal</button>
@@ -891,23 +882,6 @@
   function initials(p){ return (p.ad[0]||'').toUpperCase() + (p.soyad[0]||'').toUpperCase(); }
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10); }
 
-  // ---------- sabitlenmiş (herkes için ortak) aktif tarih ----------
-  function pinnedDateDoc(){ return db.collection('ayarlar').doc('aktifTarih'); }
-
-  async function loadPinnedDate(){
-    if(!firebaseReady) return todayStr();
-    try{
-      const snap = await pinnedDateDoc().get();
-      if(snap.exists && snap.data().tarih) return snap.data().tarih;
-    }catch(err){ console.error('Sabit tarih okunamadı:', err); }
-    return todayStr();
-  }
-
-  function savePinnedDate(dateStr){
-    if(!firebaseReady) return;
-    pinnedDateDoc().set({ tarih: dateStr }).catch(err => console.error('Sabit tarih kaydedilemedi:', err));
-  }
-
   // ---------- maç geçmişi ----------
   async function loadMatchList(){
     if(!firebaseReady) return;
@@ -918,10 +892,8 @@
     }catch(err){
       console.error('Maç geçmişi okunamadı:', err);
     }
-    const pinned = await loadPinnedDate();
-    $('#matchDate').value = pinned;
     renderHistorySelect();
-    tryLoadDate(pinned);
+    tryLoadDate($('#matchDate').value || todayStr());
   }
 
   function renderHistorySelect(){
@@ -935,17 +907,12 @@
     if(!e.target.value) return;
     $('#matchDate').value = e.target.value;
     tryLoadDate(e.target.value);
-    savePinnedDate(e.target.value);
   });
 
-  $('#matchDate').addEventListener('change', () => {
-    tryLoadDate($('#matchDate').value);
-    savePinnedDate($('#matchDate').value);
-  });
+  $('#matchDate').addEventListener('change', () => tryLoadDate($('#matchDate').value));
   $('#btnToday').addEventListener('click', () => {
     $('#matchDate').value = todayStr();
     tryLoadDate(todayStr());
-    savePinnedDate(todayStr());
   });
 
   // ---------- kilit / şifre ----------
@@ -1044,7 +1011,6 @@
     const p = players.find(x => x.id === id);
     if(!p || !unlocked) return;
     editingId = id;
-    $('#baseStatsDetails').open = true;
     $('#fAd').value = p.ad;
     $('#fSoyad').value = p.soyad;
     $('#fMevki').value = p.mevki;
@@ -1282,18 +1248,12 @@
 
   function generateTeams(){
     const dateStr = $('#matchDate').value || todayStr();
-    savePinnedDate(dateStr);
     const attending = players.filter(p => p.gelecek);
     if(attending.length < 2){
       renderNoResults('Kadro oluşturmak için “bu hafta geliyor” işaretli en az birkaç oyuncu olmalı.');
       return;
     }
     const existing = allMatches.find(m => m.id === dateStr);
-    if(existing && dateStr < todayStr()){
-      alert('Bu tarih geçmiş — geçmiş bir maçın kadrosu artık değiştirilemez. Sonuç, gol/asist ve ödeme bilgisini yine de girebilirsin.');
-      displayRecord(existing);
-      return;
-    }
     if(existing && existing.kilitli){
       alert('Bu tarihteki kadro kilitlenmiş, değiştirilemez. Önce kilidini açman gerekiyor.');
       displayRecord(existing);
@@ -1326,19 +1286,6 @@
     assignMakeshiftKeeper(teamA);
     assignMakeshiftKeeper(teamB);
 
-    if(existing){
-      const oldAll = [...existing.teamA, ...existing.teamB, ...(existing.bench||[])];
-      [...teamA, ...teamB, ...bench].forEach(p => {
-        const old = oldAll.find(o => o.id === p.id);
-        if(old){
-          if(old.odedi) p.odedi = old.odedi;
-          if(old.gol) p.gol = old.gol;
-          if(old.asist) p.asist = old.asist;
-          if(old.kurtaris) p.kurtaris = old.kurtaris;
-        }
-      });
-    }
-
     const record = {
       id: dateStr,
       tarih: dateStr,
@@ -1346,8 +1293,6 @@
       dizilis: formationStr || null,
       adiA: (existing && existing.adiA) || 'TAKIM A',
       adiB: (existing && existing.adiB) || 'TAKIM B',
-      skorA: (existing && existing.skorA) ?? null,
-      skorB: (existing && existing.skorB) ?? null,
       kilitli: false,
       teamA: JSON.parse(JSON.stringify(teamA)),
       teamB: JSON.parse(JSON.stringify(teamB)),
@@ -1503,7 +1448,6 @@
     if(target){
       $('#matchDate').value = target.id;
       tryLoadDate(target.id);
-      savePinnedDate(target.id);
     }
   }
 
@@ -1544,8 +1488,7 @@
     const balanceLabel = diff < 0.3 ? 'Çok Dengeli' : diff < 0.8 ? 'Dengeli' : 'Orta Dengeli';
     const wrap = $('#resultsWrap');
     const lockedBadge = record.kilitli ? `<span class="balance-tag" style="border-color:var(--coral); color:var(--coral);">🔒 Kilitli</span>` : '';
-    const isPast = record.tarih < todayStr();
-    const canEditPlacement = unlocked && !record.kilitli && !isPast;
+    const canEditPlacement = unlocked && !record.kilitli;
     const scoreLine = (record.skorA !== undefined && record.skorA !== null)
       ? `<span class="balance-tag" style="border-color:var(--lime); color:var(--lime); font-family:'Teko',sans-serif; font-size:16px;">${record.skorA} - ${record.skorB}</span>`
       : '';
@@ -1568,20 +1511,18 @@
           <span class="balance-tag">${balanceLabel} · fark ${fmt1(diff)}</span>
         </div>
       </div>
+      ${canEditPlacement ? `
       <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
-        ${canEditPlacement ? `
         <button class="btn-manual-edit${manualEditMode ? ' active' : ''}" id="btnManualEdit">
           ${manualEditMode ? '✓ Yerleştirmeyi Bitir' : '✋ Oyuncu Yerlerini Elle Değiştir'}
-        </button>` : ''}
-        ${!record.kilitli ? `
+        </button>
         <button class="btn-manual-edit" id="btnToggleResultPanel" style="background:rgba(255,176,32,0.14); border-color:var(--amber); color:var(--amber); animation:none;">
-          ${showResultPanel ? '✕ Sonuç Girişini Kapat' : '📋 Maç Sonucu, Gol & Asist Gir'}
-        </button>` : ''}
-        ${canEditPlacement ? `
+          ${showResultPanel ? '✕ Sonuç Girişini Kapat' : '📋 Maç Sonucu & Performans Gir'}
+        </button>
         <button class="btn-manual-edit" id="btnToggleMvpPicker" style="background:rgba(155,107,255,0.14); border-color:var(--violet); color:var(--violet); animation:none;">
           ${showMvpPicker ? '✕ MVP Seçimini Kapat' : '🌟 MVP Adayı Seç'}
-        </button>` : ''}
-      </div>
+        </button>
+      </div>` : ''}
       ${manualBanner}
       ${showResultPanel ? resultPanelHtml(record) : ''}
       ${showMvpPicker ? mvpPickerHtml(record) : ''}
@@ -1653,7 +1594,7 @@
         ${team.slice().sort((a,b)=>rating(b)-rating(a)).map(p => `
           <span class="mini-chip profile-trigger${p.id===selectedSwapId ? ' selected' : ''}" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[effPos(p)]}"></span>
-            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.oynadigiPozisyon === 'Kaleci' ? ' 🧤' : (p.oynadigiPozisyon ? ' ↔' : '')}${p.gol ? ` ⚽${p.gol}` : ''}${p.asist ? ` 🅰️${p.asist}` : ''}${p.kurtaris ? ` 🧤${p.kurtaris}` : ''}
+            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.oynadigiPozisyon === 'Kaleci' ? ' 🧤' : (p.oynadigiPozisyon ? ' ↔' : '')}
           </span>`).join('')}
         ${team.length < N ? `<span class="mini-chip" style="border-style:dashed; color:${COLORS.muted}">⚠ ${N-team.length} eksik</span>` : ''}
       </div>
@@ -1753,10 +1694,27 @@
           <tbody>${players.map(playerRow).join('')}</tbody>
         </table>
       </div>
-      <div style="margin-top:10px; font-size:12px; color:var(--muted);">💡 Bir oyuncunun o maçtaki Pas/Şut/Koşu/Fizik gibi performans puanını vermek için sahadaki ismine ya da pinine tıkla.</div>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; color:var(--muted); font-size:13px;">🎯 Performans puanlarını güncelle (opsiyonel — havuzdaki puanlara kayan ortalamayla işlenir)</summary>
+        <div style="margin-top:12px; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:14px;">
+          ${players.map(p => `
+            <div style="background:rgba(8,10,20,0.35); border:1px solid var(--line); border-radius:8px; padding:10px;">
+              <div style="font-size:12.5px; color:var(--chalk); margin-bottom:6px; font-weight:600;">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</div>
+              ${STAT_KEYS.map(k => miniStatSlider(p, k)).join('')}
+            </div>`).join('')}
+        </div>
+      </details>
       <button class="btn-primary" id="btnSaveResult" style="margin-top:16px;">✓ Sonucu Kaydet</button>
     </div>`;
   }
+
+  $('#resultsWrap').addEventListener('input', (e) => {
+    if(e.target.matches('input[data-perf]')){
+      const [pid, key] = e.target.dataset.perf.split(':');
+      const out = $(`#perfval_${pid}_${key}`);
+      if(out) out.textContent = (+e.target.value).toFixed(1);
+    }
+  });
 
   function bindSaveResult(){
     const btn = $('#btnSaveResult');
@@ -1778,9 +1736,24 @@
       if(golEl) p.gol = +golEl.value || 0;
       if(asistEl) p.asist = +asistEl.value || 0;
       if(kurtarisEl) p.kurtaris = +kurtarisEl.value || 0;
+
+      // Performans puanları girildiyse, havuzdaki oyuncuya kayan ortalamayla işle
+      const poolPlayer = players.find(pl => pl.id === p.id);
+      if(poolPlayer){
+        STAT_KEYS.forEach(key => {
+          const slider = $(`input[data-perf="${p.id}:${key}"]`);
+          if(!slider) return;
+          const matchVal = +slider.value;
+          const n = (poolPlayer.macSayisi || 0) + 1;
+          const oldVal = poolPlayer[key] ?? 6;
+          poolPlayer[key] = +(oldVal + (matchVal - oldVal) / n).toFixed(2);
+        });
+        poolPlayer.macSayisi = (poolPlayer.macSayisi || 0) + 1;
+      }
     });
 
     updateRecordFields(record, { skorA: record.skorA, skorB: record.skorB, teamA: record.teamA, teamB: record.teamB });
+    savePool();
     showResultPanel = false;
     displayRecord(record);
   }
@@ -1928,12 +1901,12 @@
       ...(record.bench||[]).map(p => ({ p, ekip: 'Yedek' }))
     ];
     const paidCount = rows.filter(r => r.p.odedi).length;
-    return `<details class="payment-table-block">
-      <summary class="payment-table-head" style="cursor:pointer; list-style:none;">
-        <h4 style="display:inline;">💵 Saha Parası Takibi</h4>
+    return `<div class="payment-table-block">
+      <div class="payment-table-head">
+        <h4>💵 Saha Parası Takibi</h4>
         <span class="balance-tag">${paidCount}/${rows.length} ödedi</span>
-      </summary>
-      <div class="payment-table-wrap" style="margin-top:12px;">
+      </div>
+      <div class="payment-table-wrap">
         <table class="payment-table">
           <thead><tr><th>Oyuncu</th><th>Takım</th><th>Durum</th></tr></thead>
           <tbody>
@@ -1946,7 +1919,7 @@
           </tbody>
         </table>
       </div>
-    </details>`;
+    </div>`;
   }
 
   function bindPaymentTable(){
@@ -1990,7 +1963,6 @@
   function openProfile(pid){
     const p = findPlayerInRecord(pid);
     if(!p) return;
-    const canRate = currentRecord && !currentRecord.kilitli;
     const overlay = document.createElement('div');
     overlay.className = 'profile-overlay';
     overlay.innerHTML = `
@@ -2008,51 +1980,10 @@
           ${bar('FİZ', p.fizik ?? 6)}
           ${bar('TOP', p.topKontrolu ?? 6)}
         </div>
-        ${canRate ? `
-        <div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px;">
-          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">🎯 Bu maçtaki performansına puan ver — genel formuna eklenir</div>
-          ${STAT_KEYS.map(k => miniStatSlider(p, k)).join('')}
-          <button class="btn-primary" id="btnSaveQuickRate" style="margin-top:10px; padding:9px 14px; font-size:13px;">✓ Bu Maç İçin Kaydet</button>
-        </div>` : ''}
       </div>`;
     overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
     overlay.querySelector('.profile-close').addEventListener('click', () => overlay.remove());
     document.body.appendChild(overlay);
-    overlay.addEventListener('input', (e) => {
-      if(e.target.matches('input[data-perf]')){
-        const [ppid, key] = e.target.dataset.perf.split(':');
-        const out = overlay.querySelector(`#perfval_${ppid}_${key}`);
-        if(out) out.textContent = (+e.target.value).toFixed(1);
-      }
-    });
-    if(canRate){
-      overlay.querySelector('#btnSaveQuickRate').addEventListener('click', () => {
-        saveQuickRating(pid, overlay);
-      });
-    }
-  }
-
-  function saveQuickRating(pid, overlay){
-    const record = currentRecord;
-    const recPlayer = findPlayerInRecord(pid);
-    const poolPlayer = players.find(pl => pl.id === pid);
-    if(!recPlayer) return;
-    STAT_KEYS.forEach(key => {
-      const slider = overlay.querySelector(`input[data-perf="${pid}:${key}"]`);
-      if(!slider) return;
-      const matchVal = +slider.value;
-      recPlayer[key] = matchVal;
-      if(poolPlayer){
-        const n = (poolPlayer.macSayisi || 0) + 1;
-        const oldVal = poolPlayer[key] ?? 6;
-        poolPlayer[key] = +(oldVal + (matchVal - oldVal) / n).toFixed(2);
-      }
-    });
-    if(poolPlayer) poolPlayer.macSayisi = (poolPlayer.macSayisi || 0) + 1;
-    updateRecordFields(record, { teamA: record.teamA, teamB: record.teamB });
-    if(poolPlayer) savePool();
-    overlay.remove();
-    displayRecord(record);
   }
 
   // ---------- pitch svg ----------
@@ -2124,12 +2055,13 @@
     </svg>`;
   }
 
+  $('#matchDate').value = todayStr();
   renderFormationOptions(activeFormat);
   renderLockUI();
   loadPool();
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v22 · geçmiş kadro donuyor, ödeme korunuyor, gol/asist görünüyor, katlanır bölümler</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v20 · sonuç/gol-asist + fizik/top + MVP oylama</div>
 </body>
 </html>
