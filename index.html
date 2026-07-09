@@ -1614,9 +1614,9 @@
         </button>` : ''}
         ${!record.kilitli ? `
         <button class="btn-manual-edit" id="btnToggleResultPanel" style="background:rgba(255,176,32,0.14); border-color:var(--amber); color:var(--amber); animation:none;">
-          ${showResultPanel ? '✕ Sonuç Girişini Kapat' : '📋 Maç Sonucu, Gol & Asist Gir'}
+          ${showResultPanel ? '✕ Sonuç Girişini Kapat' : '📋 Skor, Gol & Asist Gir (herkese açık)'}
         </button>` : ''}
-        ${canEditPlacement ? `
+        ${unlocked && !record.kilitli ? `
         <button class="btn-manual-edit" id="btnToggleMvpPicker" style="background:rgba(155,107,255,0.14); border-color:var(--violet); color:var(--violet); animation:none;">
           ${showMvpPicker ? '✕ MVP Seçimini Kapat' : '🌟 MVP Adayı Seç'}
         </button>` : ''}
@@ -2029,7 +2029,7 @@
   function openProfile(pid){
     const p = findPlayerInRecord(pid);
     if(!p) return;
-    const canRate = currentRecord && !currentRecord.kilitli;
+    const canRate = currentRecord && !currentRecord.kilitli && currentRecord.tarih <= todayStr();
     const overlay = document.createElement('div');
     overlay.className = 'profile-overlay';
     overlay.innerHTML = `
@@ -2049,10 +2049,13 @@
         </div>
         ${canRate ? `
         <div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px;">
-          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">🎯 Bu maçtaki performansına puan ver — genel formuna eklenir</div>
+          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">🎯 Bu maçtaki performansına puan ver — sadece bu maça işlenir, ayrıca genel forma kayan ortalamayla yansır.</div>
           ${STAT_KEYS.map(k => miniStatSlider(p, k)).join('')}
           <button class="btn-primary" id="btnSaveQuickRate" style="margin-top:10px; padding:9px 14px; font-size:13px;">✓ Bu Maç İçin Kaydet</button>
-        </div>` : ''}
+        </div>`
+        : (currentRecord && currentRecord.tarih > todayStr()
+          ? `<div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px; font-size:12px; color:var(--muted);">⏳ Maç performansı puanlaması maç günü (${formatDateLabel(currentRecord.tarih)}) açılır.</div>`
+          : '')}
       </div>`;
     overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
     overlay.querySelector('.profile-close').addEventListener('click', () => overlay.remove());
@@ -2169,6 +2172,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v24 · tarih sabitleme butonu + şifreyle anında yönetici modu</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v25 · maç günü performans puanı + skor/gol/asist herkese açık</div>
 </body>
 </html>
