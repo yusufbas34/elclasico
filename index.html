@@ -2029,16 +2029,24 @@
   function openProfile(pid){
     const p = findPlayerInRecord(pid);
     if(!p) return;
-    const canRate = currentRecord && !currentRecord.kilitli && currentRecord.tarih <= todayStr();
+    const canEdit = currentRecord && !currentRecord.kilitli;
+    const isKeeper = effPos(p) === 'Kaleci';
     const overlay = document.createElement('div');
     overlay.className = 'profile-overlay';
     overlay.innerHTML = `
-      <div class="profile-card">
+      <div class="profile-card" style="max-height:88vh; overflow-y:auto;">
         <button class="profile-close">✕</button>
         <div class="profile-avatar">${p.foto ? `<img src="${p.foto}">` : initials(p)}</div>
         <div class="profile-name">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</div>
         <div class="profile-pos">${p.oynadigiPozisyon ? `${p.mevki} · bu maçta ${p.oynadigiPozisyon}${p.oynadigiPozisyon==='Kaleci' ? ' 🧤' : ' ↔'}` : p.mevki}</div>
         <div class="profile-overall">${fmt1(rating(p))}</div>
+
+        <div style="width:100%; display:flex; justify-content:center; gap:16px; margin-top:10px; font-family:'Teko',sans-serif;">
+          <span style="color:var(--lime); font-size:20px;">⚽ ${p.gol||0}</span>
+          <span style="color:var(--amber); font-size:20px;">🅰️ ${p.asist||0}</span>
+          ${isKeeper ? `<span style="color:var(--cyan); font-size:20px;">🧤 ${p.kurtaris||0}</span>` : ''}
+        </div>
+
         <div class="p-bars" style="margin-top:14px; width:100%;">
           ${bar('PAS', p.pas)}
           ${bar('ŞUT', p.sut)}
@@ -2047,14 +2055,22 @@
           ${bar('FİZ', p.fizik ?? 6)}
           ${bar('TOP', p.topKontrolu ?? 6)}
         </div>
-        ${canRate ? `
+
+        ${canEdit ? `
         <div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px;">
-          <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">🎯 Bu maçtaki performansına puan ver — sadece bu maça işlenir, ayrıca genel forma kayan ortalamayla yansır.</div>
+          <div style="font-size:12px; color:var(--chalk); margin-bottom:10px; font-weight:600;">⚽ Maç İstatistiği</div>
+          <div style="display:flex; gap:8px; margin-bottom:14px;">
+            <label style="flex:1; font-size:11px; color:var(--muted);">Gol<input type="number" min="0" id="qGol" value="${p.gol||0}" style="width:100%; text-align:center; margin-top:4px;"></label>
+            <label style="flex:1; font-size:11px; color:var(--muted);">Asist<input type="number" min="0" id="qAsist" value="${p.asist||0}" style="width:100%; text-align:center; margin-top:4px;"></label>
+            ${isKeeper ? `<label style="flex:1; font-size:11px; color:var(--muted);">Kurtarış<input type="number" min="0" id="qKurtaris" value="${p.kurtaris||0}" style="width:100%; text-align:center; margin-top:4px;"></label>` : ''}
+          </div>
+          <div style="font-size:12px; color:var(--chalk); margin-bottom:8px; font-weight:600;">🎯 Bu Maçki Performans</div>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">Verdiğin puan bu maça işlenir ve oyuncunun genel puanına kayan ortalamayla yansır.</div>
           ${STAT_KEYS.map(k => miniStatSlider(p, k)).join('')}
-          <button class="btn-primary" id="btnSaveQuickRate" style="margin-top:10px; padding:9px 14px; font-size:13px;">✓ Bu Maç İçin Kaydet</button>
+          <button class="btn-primary" id="btnSaveQuickRate" style="margin-top:12px; padding:10px 14px; font-size:13px; width:100%;">✓ Kaydet</button>
         </div>`
-        : (currentRecord && currentRecord.tarih > todayStr()
-          ? `<div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px; font-size:12px; color:var(--muted);">⏳ Maç performansı puanlaması maç günü (${formatDateLabel(currentRecord.tarih)}) açılır.</div>`
+        : (currentRecord && currentRecord.kilitli
+          ? `<div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px; font-size:12px; color:var(--muted);">🔒 Bu maç kilitli, değişiklik yapılamaz.</div>`
           : '')}
       </div>`;
     overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
@@ -2067,7 +2083,7 @@
         if(out) out.textContent = (+e.target.value).toFixed(1);
       }
     });
-    if(canRate){
+    if(canEdit){
       overlay.querySelector('#btnSaveQuickRate').addEventListener('click', () => {
         saveQuickRating(pid, overlay);
       });
@@ -2079,6 +2095,16 @@
     const recPlayer = findPlayerInRecord(pid);
     const poolPlayer = players.find(pl => pl.id === pid);
     if(!recPlayer) return;
+
+    // Gol / asist / kurtarış
+    const golEl = overlay.querySelector('#qGol');
+    const asistEl = overlay.querySelector('#qAsist');
+    const kurtarisEl = overlay.querySelector('#qKurtaris');
+    if(golEl) recPlayer.gol = +golEl.value || 0;
+    if(asistEl) recPlayer.asist = +asistEl.value || 0;
+    if(kurtarisEl) recPlayer.kurtaris = +kurtarisEl.value || 0;
+
+    // Performans puanları → maça yaz + havuza kayan ortalamayla yansıt
     STAT_KEYS.forEach(key => {
       const slider = overlay.querySelector(`input[data-perf="${pid}:${key}"]`);
       if(!slider) return;
@@ -2091,7 +2117,8 @@
       }
     });
     if(poolPlayer) poolPlayer.macSayisi = (poolPlayer.macSayisi || 0) + 1;
-    updateRecordFields(record, { teamA: record.teamA, teamB: record.teamB });
+
+    updateRecordFields(record, { teamA: record.teamA, teamB: record.teamB, bench: record.bench });
     if(poolPlayer) savePool();
     overlay.remove();
     displayRecord(record);
@@ -2172,6 +2199,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v25 · maç günü performans puanı + skor/gol/asist herkese açık</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v26 · futbolcuya tıkla → gol/asist + performans, ana puana yansır</div>
 </body>
 </html>
