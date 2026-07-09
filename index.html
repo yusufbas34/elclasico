@@ -340,8 +340,8 @@
   .lock-error{ color: var(--coral); font-size:11.5px; height:14px; font-family:'JetBrains Mono',monospace; }
   .relock-row{ margin-top:14px; text-align:right; }
 
-  .p-card.editable{ cursor: pointer; }
-  .p-card.editable:hover{ border-color: rgba(214,255,63,0.4); }
+  .p-card{ cursor: pointer; }
+  .p-card:hover{ border-color: rgba(214,255,63,0.4); }
   .p-avatar{
     width:38px; height:38px; border-radius:50%;
     background: var(--surface-2);
@@ -633,20 +633,34 @@
 </div>
 
 <div class="wrap">
-  <div class="grid">
-    <!-- FORM PANEL -->
-    <div class="panel" style="position:relative;">
-      <div class="lock-overlay" id="lockOverlay">
-        <div class="lock-icon">🔒</div>
-        <div class="lock-title">Düzenleme Kilitli</div>
-        <div class="lock-sub">Oyuncu eklemek, silmek veya puanları değiştirmek için şifre gir.</div>
-        <input type="text" id="lockPassInput" placeholder="Şifre">
-        <button class="btn-primary" id="btnUnlock">Kilidi Aç</button>
-        <div class="lock-error" id="lockError"></div>
-      </div>
+  <!-- ADMIN BAR -->
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="btn-ghost" id="btnAdminToggle">🔑 Yönetici Girişi</button>
+      <span id="adminStatus" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);"></span>
+    </div>
+    <span id="syncStatus" style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color: var(--muted);"></span>
+  </div>
 
+  <!-- ADMIN LOGIN MODAL -->
+  <div id="adminModal" style="display:none; position:fixed; inset:0; z-index:120; background:rgba(5,6,11,0.75); backdrop-filter:blur(3px); align-items:center; justify-content:center; padding:24px;">
+    <div style="background:linear-gradient(180deg,var(--surface),var(--surface-2) 140%); border:1px solid rgba(245,247,250,0.1); border-radius:var(--radius); padding:28px 24px; width:280px; max-width:90vw; text-align:center; position:relative;">
+      <button id="adminModalClose" style="position:absolute; top:10px; right:10px; background:transparent; border:none; color:var(--muted); font-size:16px; cursor:pointer;">✕</button>
+      <div style="font-size:30px;">🔑</div>
+      <div style="font-family:'Teko',sans-serif; font-size:22px; color:var(--chalk); margin:6px 0;">Yönetici Girişi</div>
+      <div class="lock-sub" style="margin-bottom:14px;">Şifre girince oyuncu ekleme, düzenleme ve kilitleme yetkileri açılır.</div>
+      <input type="text" id="lockPassInput" placeholder="Şifre" style="text-align:center; margin-bottom:12px;">
+      <button class="btn-primary" id="btnUnlock" style="width:100%;">Kilidi Aç</button>
+      <div class="lock-error" id="lockError" style="margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ADD/EDIT PLAYER MODAL -->
+  <div id="addModal" style="display:none; position:fixed; inset:0; z-index:120; background:rgba(5,6,11,0.75); backdrop-filter:blur(3px); align-items:center; justify-content:center; padding:24px;">
+    <div class="panel" style="width:360px; max-width:92vw; max-height:88vh; overflow-y:auto; position:relative;">
+      <button id="addModalClose" style="position:absolute; top:12px; right:12px; background:transparent; border:none; color:var(--muted); font-size:16px; cursor:pointer;">✕</button>
       <div id="addPanelContent">
-      <h2>Oyuncu Ekle</h2>
+      <h2 id="addModalTitle">Oyuncu Ekle</h2>
       <div class="panel-sub">İsim, mevki ve dört temel değeri gir — havuza kalıcı olarak eklenir.</div>
 
       <div class="field row2">
@@ -709,35 +723,32 @@
 
       <button class="btn-primary" id="btnAdd">+ Kadroya Ekle</button>
       <button class="btn-ghost" id="btnCancelEdit" style="display:none; margin-top:8px; width:100%; justify-content:center;">İptal</button>
-
-      <div class="relock-row">
-        <button class="btn-ghost" id="btnRelock">🔒 Kilitle</button>
-      </div>
       </div>
     </div>
+  </div>
 
-    <!-- ROSTER PANEL -->
-    <div class="panel">
-      <div class="roster-head">
-        <div>
-          <h2>Oyuncu Havuzu</h2>
-          <div class="panel-sub" style="margin-bottom:0;">Havuzda <b id="statTotal">0</b> oyuncu · bu hafta geliyor: <b id="statAttending">0</b></div>
-        </div>
-        <div class="filters" id="filters">
-          <button class="chip active" data-f="Tümü">Tümü</button>
-          <button class="chip" data-f="Kaleci">Kaleci</button>
-          <button class="chip" data-f="Defans">Defans</button>
-          <button class="chip" data-f="Orta Saha">Orta Saha</button>
-          <button class="chip" data-f="Forvet">Forvet</button>
-        </div>
+  <!-- ROSTER PANEL (full width) -->
+  <div class="panel">
+    <div class="roster-head">
+      <div>
+        <h2>Oyuncu Havuzu</h2>
+        <div class="panel-sub" style="margin-bottom:0;">Havuzda <b id="statTotal">0</b> oyuncu · bu hafta geliyor: <b id="statAttending">0</b></div>
       </div>
-      <div style="display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap;">
-        <button class="btn-ghost" id="btnSelectAll">✓ Bu Hafta Herkes Geliyor</button>
-        <button class="btn-ghost" id="btnSelectNone">✕ Hiçbiri Gelmiyor</button>
-        <span id="syncStatus" style="font-family:'JetBrains Mono', monospace; font-size:10.5px; color: var(--muted); margin-left:auto;"></span>
+      <div class="filters" id="filters">
+        <button class="chip active" data-f="Tümü">Tümü</button>
+        <button class="chip" data-f="Kaleci">Kaleci</button>
+        <button class="chip" data-f="Defans">Defans</button>
+        <button class="chip" data-f="Orta Saha">Orta Saha</button>
+        <button class="chip" data-f="Forvet">Forvet</button>
       </div>
-      <div class="roster-list" id="rosterList"></div>
     </div>
+    <div style="display:flex; gap:8px; margin-bottom:14px; align-items:center; flex-wrap:wrap;">
+      <button class="btn-ghost" id="btnSelectAll">✓ Bu Hafta Herkes Geliyor</button>
+      <button class="btn-ghost" id="btnSelectNone">✕ Hiçbiri Gelmiyor</button>
+      <button class="btn-ghost" id="btnOpenAdd" style="display:none;">➕ Oyuncu Ekle</button>
+      <button class="btn-ghost" id="btnToggleRoster" style="margin-left:auto;">▾ Havuzu Gizle</button>
+    </div>
+    <div class="roster-list" id="rosterList"></div>
   </div>
 
   <!-- CONTROL BAR -->
@@ -973,16 +984,29 @@
     savePinnedDate(cur);
   });
 
-  // ---------- kilit / şifre ----------
+  // ---------- yönetici / şifre ----------
   function renderLockUI(){
-    $('#lockOverlay').style.display = unlocked ? 'none' : 'flex';
+    const status = $('#adminStatus');
+    const btn = $('#btnAdminToggle');
+    const addBtn = $('#btnOpenAdd');
+    if(unlocked){
+      if(status) status.textContent = '✅ Yönetici modu açık';
+      if(btn) btn.textContent = '🔓 Yönetici Çıkışı';
+      if(addBtn) addBtn.style.display = 'inline-flex';
+    } else {
+      if(status) status.textContent = '';
+      if(btn) btn.textContent = '🔑 Yönetici Girişi';
+      if(addBtn) addBtn.style.display = 'none';
+    }
   }
+  function openAdminModal(){ $('#adminModal').style.display = 'flex'; setTimeout(()=>$('#lockPassInput').focus(), 50); }
+  function closeAdminModal(){ $('#adminModal').style.display = 'none'; $('#lockPassInput').value = ''; $('#lockError').textContent = ''; }
+
   function tryUnlock(){
     const val = $('#lockPassInput').value;
     if(val === EDIT_PASSWORD){
       unlocked = true;
-      $('#lockPassInput').value = '';
-      $('#lockError').textContent = '';
+      closeAdminModal();
       renderLockUI();
       renderRoster();
       refreshCurrentView();
@@ -994,14 +1018,40 @@
     const d = $('#matchDate').value || todayStr();
     tryLoadDate(d);
   }
+  $('#btnAdminToggle').addEventListener('click', () => {
+    if(unlocked){
+      unlocked = false;
+      cancelEdit();
+      renderLockUI();
+      renderRoster();
+      refreshCurrentView();
+    } else {
+      openAdminModal();
+    }
+  });
+  $('#adminModalClose').addEventListener('click', closeAdminModal);
+  $('#adminModal').addEventListener('click', (e) => { if(e.target === $('#adminModal')) closeAdminModal(); });
   $('#btnUnlock').addEventListener('click', tryUnlock);
   $('#lockPassInput').addEventListener('keydown', e => { if(e.key==='Enter') tryUnlock(); });
-  $('#btnRelock').addEventListener('click', () => {
-    unlocked = false;
-    cancelEdit();
-    renderLockUI();
-    renderRoster();
-    refreshCurrentView();
+
+  // ---------- oyuncu ekleme modalı ----------
+  function openAddModal(){ $('#addModal').style.display = 'flex'; }
+  function closeAddModal(){ $('#addModal').style.display = 'none'; cancelEdit(); }
+  $('#btnOpenAdd').addEventListener('click', openAddModal);
+  $('#addModalClose').addEventListener('click', closeAddModal);
+  $('#addModal').addEventListener('click', (e) => { if(e.target === $('#addModal')) closeAddModal(); });
+
+  // ---------- havuzu gizle/göster ----------
+  $('#btnToggleRoster').addEventListener('click', () => {
+    const list = $('#rosterList');
+    const btn = $('#btnToggleRoster');
+    if(list.style.display === 'none'){
+      list.style.display = 'grid';
+      btn.textContent = '▾ Havuzu Gizle';
+    } else {
+      list.style.display = 'none';
+      btn.textContent = '▸ Havuzu Göster';
+    }
   });
 
   // ---------- fotoğraf seçimi ----------
@@ -1061,12 +1111,12 @@
       cancelEdit();
     } else {
       players.push({ id: uid(), gelecek: true, ...data });
+      closeAddModal();
     }
     $('#fAd').value = ''; $('#fSoyad').value = '';
     pendingPhoto = null;
     $('#photoPreview').innerHTML = 'Yok';
     $('#fFoto').value = '';
-    $('#fAd').focus();
     renderRoster();
     savePool();
   });
@@ -1075,6 +1125,8 @@
     const p = players.find(x => x.id === id);
     if(!p || !unlocked) return;
     editingId = id;
+    openAddModal();
+    $('#addModalTitle').textContent = 'Oyuncuyu Düzenle';
     $('#baseStatsDetails').open = true;
     $('#fAd').value = p.ad;
     $('#fSoyad').value = p.soyad;
@@ -1090,7 +1142,6 @@
     $('#photoPreview').innerHTML = p.foto ? `<img src="${p.foto}">` : 'Yok';
     $('#btnAdd').textContent = '✓ Oyuncuyu Güncelle';
     $('#btnCancelEdit').style.display = 'flex';
-    $('#addPanelContent').scrollIntoView({ behavior:'smooth', block:'start' });
   }
 
   function cancelEdit(){
@@ -1099,10 +1150,11 @@
     pendingPhoto = null;
     $('#photoPreview').innerHTML = 'Yok';
     $('#fFoto').value = '';
+    $('#addModalTitle').textContent = 'Oyuncu Ekle';
     $('#btnAdd').textContent = '+ Kadroya Ekle';
     $('#btnCancelEdit').style.display = 'none';
   }
-  $('#btnCancelEdit').addEventListener('click', cancelEdit);
+  $('#btnCancelEdit').addEventListener('click', closeAddModal);
 
   $('#btnSelectAll').addEventListener('click', () => {
     players.forEach(p => p.gelecek = true);
@@ -1239,26 +1291,28 @@
       });
     });
     $$('.p-del').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if(!confirm('Bu oyuncuyu havuzdan silmek istediğine emin misin?')) return;
         players = players.filter(p => p.id !== btn.dataset.id);
         renderRoster();
         savePool();
       });
     });
     $$('.p-attend input').forEach(cb => {
-      cb.addEventListener('change', () => {
+      cb.addEventListener('change', (e) => {
+        e.stopPropagation();
         const p = players.find(pl => pl.id === cb.dataset.id);
         if(p){ p.gelecek = cb.checked; renderRoster(); savePool(); }
       });
     });
-    if(unlocked){
-      $$('.p-card.editable').forEach(card => {
-        card.addEventListener('click', (e) => {
-          if(e.target.closest('.p-del') || e.target.closest('.p-attend') || e.target.closest('.p-edit')) return;
-          startEdit(card.dataset.id);
-        });
+    // Her karta tıklama → havuz profil kartı (admin olsun olmasın)
+    $$('.p-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if(e.target.closest('.p-del') || e.target.closest('.p-attend') || e.target.closest('.p-edit')) return;
+        openPoolProfile(card.dataset.id);
       });
-    }
+    });
   }
 
   function bar(label, val){
@@ -1270,7 +1324,7 @@
   }
 
   function cardHtml(p){
-    return `<div class="p-card ${POS_CLASS[p.mevki]} ${p.gelecek ? '' : 'out'} ${unlocked ? 'editable' : ''}" data-id="${p.id}">
+    return `<div class="p-card ${POS_CLASS[p.mevki]} ${p.gelecek ? '' : 'out'}" data-id="${p.id}">
       <label class="p-attend">
         <input type="checkbox" data-id="${p.id}" ${p.gelecek ? 'checked' : ''}>
         <span class="toggle"></span>
@@ -1300,6 +1354,85 @@
 
   function escapeHtml(s){
     return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- maç istikrarı (kaç maça geldi) ----------
+  const PRIDE_GIFS = [
+    'https://media.tenor.com/mr1PnUIApZ4AAAAj/happy-pride-victor-salazar.gif',
+    'https://media.tenor.com/6IlIxNmizEAAAAAM/rainbow-gay.gif',
+    'https://media.tenor.com/gHtdZVkGf60AAAAM/oh-no-dont-chase-me-gay-run.gif',
+    'https://media.tenor.com/M2u0sPls4bYAAAAM/gay-gay-men.gif',
+    'https://media.tenor.com/TvDps5i53TEAAAAm/abster-abstract.webp',
+    'https://media.tenor.com/HmAtpTX92OsAAAAM/frankie-grande-rainbow.gif',
+    'https://media.tenor.com/wb9qgz5W7GcAAAAm/arc-balance.webp',
+    'https://media.tenor.com/DA8IJdk-JhUAAAAm/lgbt-pride.webp'
+  ];
+
+  function attendanceStats(pid){
+    let played = 0;
+    const total = allMatches.length;
+    allMatches.forEach(m => {
+      const all = [...(m.teamA||[]), ...(m.teamB||[])];
+      if(all.some(p => p.id === pid)) played++;
+    });
+    const pct = total ? Math.round((played/total)*100) : 0;
+    return { played, total, pct };
+  }
+
+  function openPoolProfile(pid){
+    const p = players.find(x => x.id === pid);
+    if(!p) return;
+    const st = attendanceStats(pid);
+    const overlay = document.createElement('div');
+    overlay.className = 'profile-overlay';
+
+    if(!p.gelecek){
+      const gif = PRIDE_GIFS[Math.floor(Math.random()*PRIDE_GIFS.length)];
+      overlay.innerHTML = `
+        <div class="profile-card" style="max-height:88vh; overflow-y:auto;">
+          <button class="profile-close">✕</button>
+          <div class="profile-name" style="margin-top:8px;">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</div>
+          <div class="profile-pos" style="color:var(--coral);">❌ Bu hafta gelmiyor</div>
+          <img src="${gif}" style="width:100%; max-width:240px; border-radius:12px; margin-top:14px;" alt="">
+          ${unlocked ? `<button class="btn-ghost" id="btnPoolEdit" style="margin-top:14px;">✎ Düzenle</button>` : ''}
+        </div>`;
+      overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+      overlay.querySelector('.profile-close').addEventListener('click', () => overlay.remove());
+      document.body.appendChild(overlay);
+      const eb = overlay.querySelector('#btnPoolEdit');
+      if(eb) eb.addEventListener('click', () => { overlay.remove(); startEdit(pid); });
+      return;
+    }
+
+    overlay.innerHTML = `
+      <div class="profile-card" style="max-height:88vh; overflow-y:auto;">
+        <button class="profile-close">✕</button>
+        <div class="profile-avatar">${p.foto ? `<img src="${p.foto}">` : initials(p)}</div>
+        <div class="profile-name">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</div>
+        <div class="profile-pos">${p.mevki}</div>
+        <div class="profile-overall">${fmt1(rating(p))}</div>
+
+        <div style="width:100%; margin-top:12px; background:rgba(8,10,20,0.4); border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted); letter-spacing:1px;">MAÇ İSTİKRARI</div>
+          <div style="font-family:'Teko',sans-serif; font-size:26px; color:var(--lime);">%${st.pct}</div>
+          <div style="font-size:11px; color:var(--muted);">${st.played} / ${st.total} maç</div>
+        </div>
+
+        <div class="p-bars" style="margin-top:14px; width:100%;">
+          ${bar('PAS', p.pas)}
+          ${bar('ŞUT', p.sut)}
+          ${bar('KOŞ', p.kosu)}
+          ${bar('SAV', p.savunma)}
+          ${bar('FİZ', p.fizik ?? 6)}
+          ${bar('TOP', p.topKontrolu ?? 6)}
+        </div>
+        ${unlocked ? `<button class="btn-ghost" id="btnPoolEdit" style="margin-top:16px;">✎ Düzenle</button>` : ''}
+      </div>`;
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+    overlay.querySelector('.profile-close').addEventListener('click', () => overlay.remove());
+    document.body.appendChild(overlay);
+    const eb = overlay.querySelector('#btnPoolEdit');
+    if(eb) eb.addEventListener('click', () => { overlay.remove(); startEdit(pid); });
   }
 
   // ---------- team generation ----------
@@ -1599,11 +1732,13 @@
           <button class="btn-ghost" id="btnPrevMatch">◀</button>
           <h2>${formatDateLabel(record.tarih)} — ${record.format} kişi${record.dizilis ? ' · ' + record.dizilis : ''}</h2>
           <button class="btn-ghost" id="btnNextMatch">▶</button>
-          ${unlocked ? `<button class="btn-ghost" id="btnToggleLock">${record.kilitli ? '🔓 Kilidi Aç' : '🔒 Kilitle'}</button>` : ''}
+          ${unlocked ? `<button class="btn-ghost" id="btnToggleLock">${record.kilitli ? '🔓 Kilidi Aç' : '🔒 Kadroyu Kilitle'}</button>` : ''}
+          ${unlocked ? `<button class="btn-ghost" id="btnToggleStatLock">${record.statKilitli ? '🔓 İstatistik Kilidini Aç' : '📊 İstatistiği Kilitle'}</button>` : ''}
         </div>
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           ${scoreLine}
           ${lockedBadge}
+          ${record.statKilitli ? `<span class="balance-tag" style="border-color:var(--amber); color:var(--amber);">📊 İst. Kilitli</span>` : ''}
           <span class="balance-tag">${balanceLabel} · fark ${fmt1(diff)}</span>
         </div>
       </div>
@@ -1612,7 +1747,7 @@
         <button class="btn-manual-edit${manualEditMode ? ' active' : ''}" id="btnManualEdit">
           ${manualEditMode ? '✓ Yerleştirmeyi Bitir' : '✋ Oyuncu Yerlerini Elle Değiştir'}
         </button>` : ''}
-        ${!record.kilitli ? `
+        ${!record.statKilitli ? `
         <button class="btn-manual-edit" id="btnToggleResultPanel" style="background:rgba(255,176,32,0.14); border-color:var(--amber); color:var(--amber); animation:none;">
           ${showResultPanel ? '✕ Sonuç Girişini Kapat' : '📋 Skor, Gol & Asist Gir (herkese açık)'}
         </button>` : ''}
@@ -1662,6 +1797,12 @@
     btn.addEventListener('click', async () => {
       record.kilitli = !record.kilitli;
       await updateRecordFields(record, { kilitli: record.kilitli });
+      displayRecord(record);
+    });
+    const statBtn = $('#btnToggleStatLock');
+    if(statBtn) statBtn.addEventListener('click', async () => {
+      record.statKilitli = !record.statKilitli;
+      await updateRecordFields(record, { statKilitli: record.statKilitli });
       displayRecord(record);
     });
   }
@@ -2029,7 +2170,7 @@
   function openProfile(pid){
     const p = findPlayerInRecord(pid);
     if(!p) return;
-    const canEdit = currentRecord && !currentRecord.kilitli;
+    const canEdit = currentRecord && !currentRecord.statKilitli;
     const isKeeper = effPos(p) === 'Kaleci';
     const overlay = document.createElement('div');
     overlay.className = 'profile-overlay';
@@ -2153,6 +2294,19 @@
         const badgeIcon = p.oynadigiPozisyon === 'Kaleci' ? '🧤' : (p.oynadigiPozisyon ? '↔' : '');
         const badge = badgeIcon ? `<text x="${x+13}" y="${y-11}" text-anchor="middle" font-size="10">${badgeIcon}</text>` : '';
         const selRing = p.id === selectedSwapId ? `<circle cx="${x}" cy="${y}" r="22" fill="none" stroke="${COLORS.lime}" stroke-width="2" stroke-dasharray="2 2"/>` : '';
+        let statBadges = '';
+        let by = y - 14;
+        if(p.gol){
+          statBadges += `<g><circle cx="${x+20}" cy="${by}" r="8" fill="${COLORS.bg2}" stroke="${COLORS.lime}" stroke-width="1"/><text x="${x+20}" y="${by+3}" text-anchor="middle" font-size="8" fill="${COLORS.chalk}">${p.gol>1?p.gol+'⚽':'⚽'}</text></g>`;
+          by += 17;
+        }
+        if(p.asist){
+          statBadges += `<g><circle cx="${x+20}" cy="${by}" r="8" fill="${COLORS.bg2}" stroke="${COLORS.amber}" stroke-width="1"/><text x="${x+20}" y="${by+3}" text-anchor="middle" font-size="7" fill="${COLORS.amber}" font-weight="700">${p.asist>1?p.asist+'A':'A'}</text></g>`;
+          by += 17;
+        }
+        if(p.kurtaris){
+          statBadges += `<g><circle cx="${x+20}" cy="${by}" r="8" fill="${COLORS.bg2}" stroke="${COLORS.cyan}" stroke-width="1"/><text x="${x+20}" y="${by+3}" text-anchor="middle" font-size="8">${p.kurtaris>1?p.kurtaris+'🧤':'🧤'}</text></g>`;
+        }
         if(p.foto){
           pins += `
             <g class="pin" data-pid="${p.id}" style="cursor:pointer;">
@@ -2161,6 +2315,7 @@
               <image href="${p.foto}" x="${x-16}" y="${y-16}" width="32" height="32" preserveAspectRatio="xMidYMid slice" clip-path="url(#${clipId})"/>
               <circle cx="${x}" cy="${y}" r="16" fill="none" stroke="${ringColor}" stroke-width="2.5"${dash}/>
               ${badge}
+              ${statBadges}
               <text x="${x}" y="${y+30}" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="${COLORS.muted}">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</text>
             </g>`;
         } else {
@@ -2169,6 +2324,7 @@
               ${selRing}
               <circle cx="${x}" cy="${y}" r="17" fill="${COLORS.surface2}" stroke="${ringColor}" stroke-width="2.5"${dash}/>
               ${badge}
+              ${statBadges}
               <text x="${x}" y="${y+5}" text-anchor="middle" font-family="Teko, sans-serif" font-size="15" font-weight="600" fill="${COLORS.chalk}">${initials(p)}</text>
               <text x="${x}" y="${y+30}" text-anchor="middle" font-family="Inter, sans-serif" font-size="8" fill="${COLORS.muted}">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</text>
             </g>`;
@@ -2199,6 +2355,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v26 · futbolcuya tıkla → gol/asist + performans, ana puana yansır</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v27 · sol panel kaldırıldı, admin butonu, havuz profil kartı, ayrı istatistik kilidi, saha gol/asist rozetleri, maç istikrarı</div>
 </body>
 </html>
