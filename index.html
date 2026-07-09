@@ -689,6 +689,14 @@
         <div class="stat-row-head"><label for="fSavunma">Savunma</label><span class="stat-val" id="vSavunma">6.0</span></div>
         <input type="range" id="fSavunma" min="1" max="10" step="0.1" value="6">
       </div>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fFizik">Fizik</label><span class="stat-val" id="vFizik">6.0</span></div>
+        <input type="range" id="fFizik" min="1" max="10" step="0.1" value="6">
+      </div>
+      <div class="stat-row">
+        <div class="stat-row-head"><label for="fTopKontrolu">Top Kontrolü</label><span class="stat-val" id="vTopKontrolu">6.0</span></div>
+        <input type="range" id="fTopKontrolu" min="1" max="10" step="0.1" value="6">
+      </div>
 
       <button class="btn-primary" id="btnAdd">+ Kadroya Ekle</button>
       <button class="btn-ghost" id="btnCancelEdit" style="display:none; margin-top:8px; width:100%; justify-content:center;">İptal</button>
@@ -786,6 +794,8 @@
   let currentRecord = null; // ekranda gösterilen maç kaydı (profil modalı için)
   let manualEditMode = false;
   let selectedSwapId = null;
+  let showResultPanel = false;
+  let showMvpPicker = false;
   // ====== FIREBASE AYARI — BURAYI DOLDUR ======
   // console.firebase.google.com adresinden ücretsiz bir proje oluştur,
   // Firestore Database'i etkinleştir, sonra Project Settings > Genel >
@@ -864,7 +874,10 @@
     }, 200);
   }
 
-  function rating(p){ return (p.pas + p.sut + p.kosu + p.savunma) / 4; }
+  function rating(p){
+    const fizik = p.fizik ?? 6, top = p.topKontrolu ?? 6;
+    return (p.pas + p.sut + p.kosu + p.savunma + fizik + top) / 6;
+  }
   function fmt1(n){ return (Math.round(n*10)/10).toFixed(1); }
   function initials(p){ return (p.ad[0]||'').toUpperCase() + (p.soyad[0]||'').toUpperCase(); }
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10); }
@@ -952,8 +965,8 @@
   });
 
   // ---------- slider live values ----------
-  ['fPas','fSut','fKosu','fSavunma'].forEach((id, i) => {
-    const map = ['vPas','vSut','vKosu','vSavunma'];
+  ['fPas','fSut','fKosu','fSavunma','fFizik','fTopKontrolu'].forEach((id, i) => {
+    const map = ['vPas','vSut','vKosu','vSavunma','vFizik','vTopKontrolu'];
     $('#'+id).addEventListener('input', e => { $('#'+map[i]).textContent = (+e.target.value).toFixed(1); });
   });
 
@@ -974,7 +987,9 @@
       pas: +$('#fPas').value,
       sut: +$('#fSut').value,
       kosu: +$('#fKosu').value,
-      savunma: +$('#fSavunma').value
+      savunma: +$('#fSavunma').value,
+      fizik: +$('#fFizik').value,
+      topKontrolu: +$('#fTopKontrolu').value
     };
     if(editingId){
       const p = players.find(x => x.id === editingId);
@@ -1003,6 +1018,9 @@
     $('#fSut').value = p.sut; $('#vSut').textContent = p.sut.toFixed(1);
     $('#fKosu').value = p.kosu; $('#vKosu').textContent = p.kosu.toFixed(1);
     $('#fSavunma').value = p.savunma; $('#vSavunma').textContent = p.savunma.toFixed(1);
+    const fizik = p.fizik ?? 6, top = p.topKontrolu ?? 6;
+    $('#fFizik').value = fizik; $('#vFizik').textContent = fizik.toFixed(1);
+    $('#fTopKontrolu').value = top; $('#vTopKontrolu').textContent = top.toFixed(1);
     pendingPhoto = p.foto || null;
     $('#photoPreview').innerHTML = p.foto ? `<img src="${p.foto}">` : 'Yok';
     $('#btnAdd').textContent = '✓ Oyuncuyu Güncelle';
@@ -1209,6 +1227,8 @@
         ${bar('ŞUT', p.sut)}
         ${bar('KOŞ', p.kosu)}
         ${bar('SAV', p.savunma)}
+        ${bar('FİZ', p.fizik ?? 6)}
+        ${bar('TOP', p.topKontrolu ?? 6)}
       </div>
     </div>`;
   }
@@ -1469,6 +1489,9 @@
     const wrap = $('#resultsWrap');
     const lockedBadge = record.kilitli ? `<span class="balance-tag" style="border-color:var(--coral); color:var(--coral);">🔒 Kilitli</span>` : '';
     const canEditPlacement = unlocked && !record.kilitli;
+    const scoreLine = (record.skorA !== undefined && record.skorA !== null)
+      ? `<span class="balance-tag" style="border-color:var(--lime); color:var(--lime); font-family:'Teko',sans-serif; font-size:16px;">${record.skorA} - ${record.skorB}</span>`
+      : '';
     const manualBanner = manualEditMode
       ? `<div style="background:rgba(214,255,63,0.08); border:1px dashed var(--lime); border-radius:var(--radius-sm); padding:10px 14px; margin-bottom:16px; font-size:13px; color:var(--chalk);">
            ✋ <b>Yerleştirme modu açık.</b> Bir oyuncuya dokun, sonra yerini değiştirmek istediğin oyuncuya dokun — ikisi yer değiştirir. (Yedekler de dahil.)
@@ -1482,18 +1505,28 @@
           <button class="btn-ghost" id="btnNextMatch">▶</button>
           ${unlocked ? `<button class="btn-ghost" id="btnToggleLock">${record.kilitli ? '🔓 Kilidi Aç' : '🔒 Kilitle'}</button>` : ''}
         </div>
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          ${scoreLine}
           ${lockedBadge}
           <span class="balance-tag">${balanceLabel} · fark ${fmt1(diff)}</span>
         </div>
       </div>
       ${canEditPlacement ? `
-      <div style="margin-bottom:16px;">
+      <div style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
         <button class="btn-manual-edit${manualEditMode ? ' active' : ''}" id="btnManualEdit">
           ${manualEditMode ? '✓ Yerleştirmeyi Bitir' : '✋ Oyuncu Yerlerini Elle Değiştir'}
         </button>
+        <button class="btn-manual-edit" id="btnToggleResultPanel" style="background:rgba(255,176,32,0.14); border-color:var(--amber); color:var(--amber); animation:none;">
+          ${showResultPanel ? '✕ Sonuç Girişini Kapat' : '📋 Maç Sonucu & Performans Gir'}
+        </button>
+        <button class="btn-manual-edit" id="btnToggleMvpPicker" style="background:rgba(155,107,255,0.14); border-color:var(--violet); color:var(--violet); animation:none;">
+          ${showMvpPicker ? '✕ MVP Seçimini Kapat' : '🌟 MVP Adayı Seç'}
+        </button>
       </div>` : ''}
       ${manualBanner}
+      ${showResultPanel ? resultPanelHtml(record) : ''}
+      ${showMvpPicker ? mvpPickerHtml(record) : ''}
+      ${mvpBlockHtml(record)}
       <div class="pitches">
         ${teamBlock('a', record.adiA || 'TAKIM A', record.teamA, record.format, record)}
         ${teamBlock('b', record.adiB || 'TAKIM B', record.teamB, record.format, record)}
@@ -1507,6 +1540,9 @@
     bindProfileTriggers();
     bindManualEditToggle();
     bindPaymentTable();
+    bindResultPanelToggle();
+    bindMvpPickerToggle();
+    bindMvpVoting();
   }
 
   function bindTeamNameEdit(record){
@@ -1612,6 +1648,219 @@
     });
   }
 
+  // ---------- maç sonucu, gol/asist & performans revizyonu ----------
+  const STAT_KEYS = ['pas','sut','kosu','savunma','fizik','topKontrolu'];
+  const STAT_LABELS = { pas:'Pas', sut:'Şut', kosu:'Koşu', savunma:'Savunma', fizik:'Fizik', topKontrolu:'Top K.' };
+
+  function bindResultPanelToggle(){
+    const btn = $('#btnToggleResultPanel');
+    if(!btn) return;
+    btn.addEventListener('click', () => {
+      showResultPanel = !showResultPanel;
+      displayRecord(currentRecord);
+    });
+  }
+
+  function miniStatSlider(p, key){
+    const val = p[key] ?? 6;
+    return `<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+      <span style="font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--muted); width:32px;">${STAT_LABELS[key]}</span>
+      <input type="range" min="1" max="10" step="0.1" value="${val}" data-perf="${p.id}:${key}" style="flex:1;">
+      <span class="stat-val" id="perfval_${p.id}_${key}" style="font-size:13px; min-width:26px;">${(+val).toFixed(1)}</span>
+    </div>`;
+  }
+
+  function resultPanelHtml(record){
+    const players = [...record.teamA, ...record.teamB];
+    const playerRow = (p) => `
+      <tr>
+        <td>${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</td>
+        <td><input type="number" min="0" value="${p.gol||0}" data-gol="${p.id}" style="width:52px; text-align:center;"></td>
+        <td><input type="number" min="0" value="${p.asist||0}" data-asist="${p.id}" style="width:52px; text-align:center;"></td>
+        <td>${effPos(p)==='Kaleci' ? `<input type="number" min="0" value="${p.kurtaris||0}" data-kurtaris="${p.id}" style="width:52px; text-align:center;">` : '—'}</td>
+      </tr>`;
+    return `<div class="payment-table-block" style="margin-bottom:16px;">
+      <div class="payment-table-head"><h4>📋 Maç Sonucu</h4></div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <span style="font-family:'Teko',sans-serif; color:var(--lime);">${escapeHtml(record.adiA||'TAKIM A')}</span>
+        <input type="number" min="0" id="skorAInput" value="${record.skorA ?? ''}" style="width:60px; text-align:center; font-size:18px;">
+        <span style="color:var(--muted);">—</span>
+        <input type="number" min="0" id="skorBInput" value="${record.skorB ?? ''}" style="width:60px; text-align:center; font-size:18px;">
+        <span style="font-family:'Teko',sans-serif; color:var(--amber);">${escapeHtml(record.adiB||'TAKIM B')}</span>
+      </div>
+      <div class="payment-table-wrap">
+        <table class="payment-table">
+          <thead><tr><th>Oyuncu</th><th>⚽ Gol</th><th>🅰️ Asist</th><th>🧤 Kurtarış</th></tr></thead>
+          <tbody>${players.map(playerRow).join('')}</tbody>
+        </table>
+      </div>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer; color:var(--muted); font-size:13px;">🎯 Performans puanlarını güncelle (opsiyonel — havuzdaki puanlara kayan ortalamayla işlenir)</summary>
+        <div style="margin-top:12px; display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap:14px;">
+          ${players.map(p => `
+            <div style="background:rgba(8,10,20,0.35); border:1px solid var(--line); border-radius:8px; padding:10px;">
+              <div style="font-size:12.5px; color:var(--chalk); margin-bottom:6px; font-weight:600;">${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</div>
+              ${STAT_KEYS.map(k => miniStatSlider(p, k)).join('')}
+            </div>`).join('')}
+        </div>
+      </details>
+      <button class="btn-primary" id="btnSaveResult" style="margin-top:16px;">✓ Sonucu Kaydet</button>
+    </div>`;
+  }
+
+  $('#resultsWrap').addEventListener('input', (e) => {
+    if(e.target.matches('input[data-perf]')){
+      const [pid, key] = e.target.dataset.perf.split(':');
+      const out = $(`#perfval_${pid}_${key}`);
+      if(out) out.textContent = (+e.target.value).toFixed(1);
+    }
+  });
+
+  function bindSaveResult(){
+    const btn = $('#btnSaveResult');
+    if(!btn) return;
+    btn.addEventListener('click', saveMatchResult);
+  }
+
+  function saveMatchResult(){
+    const record = currentRecord;
+    if(!record) return;
+    record.skorA = $('#skorAInput').value === '' ? null : +$('#skorAInput').value;
+    record.skorB = $('#skorBInput').value === '' ? null : +$('#skorBInput').value;
+
+    const allPlayers = [...record.teamA, ...record.teamB];
+    allPlayers.forEach(p => {
+      const golEl = $(`input[data-gol="${p.id}"]`);
+      const asistEl = $(`input[data-asist="${p.id}"]`);
+      const kurtarisEl = $(`input[data-kurtaris="${p.id}"]`);
+      if(golEl) p.gol = +golEl.value || 0;
+      if(asistEl) p.asist = +asistEl.value || 0;
+      if(kurtarisEl) p.kurtaris = +kurtarisEl.value || 0;
+
+      // Performans puanları girildiyse, havuzdaki oyuncuya kayan ortalamayla işle
+      const poolPlayer = players.find(pl => pl.id === p.id);
+      if(poolPlayer){
+        STAT_KEYS.forEach(key => {
+          const slider = $(`input[data-perf="${p.id}:${key}"]`);
+          if(!slider) return;
+          const matchVal = +slider.value;
+          const n = (poolPlayer.macSayisi || 0) + 1;
+          const oldVal = poolPlayer[key] ?? 6;
+          poolPlayer[key] = +(oldVal + (matchVal - oldVal) / n).toFixed(2);
+        });
+        poolPlayer.macSayisi = (poolPlayer.macSayisi || 0) + 1;
+      }
+    });
+
+    updateRecordFields(record, { skorA: record.skorA, skorB: record.skorB, teamA: record.teamA, teamB: record.teamB });
+    savePool();
+    showResultPanel = false;
+    displayRecord(record);
+  }
+
+  // ---------- MVP oylaması ----------
+  function bindMvpPickerToggle(){
+    const btn = $('#btnToggleMvpPicker');
+    if(!btn) return;
+    btn.addEventListener('click', () => {
+      showMvpPicker = !showMvpPicker;
+      displayRecord(currentRecord);
+    });
+  }
+
+  function mvpPickerHtml(record){
+    const players = [...record.teamA, ...record.teamB];
+    const current = record.mvpAdaylar || [];
+    return `<div class="payment-table-block" style="margin-bottom:16px; border-color:var(--violet);">
+      <div class="payment-table-head"><h4>🌟 MVP Adaylarını Seç</h4></div>
+      <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+        ${players.map(p => `
+          <label class="chip${current.includes(p.id) ? ' active' : ''}" style="cursor:pointer;">
+            <input type="checkbox" value="${p.id}" class="mvp-candidate-check" ${current.includes(p.id) ? 'checked' : ''} style="margin-right:6px;">
+            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}
+          </label>`).join('')}
+      </div>
+      <button class="btn-primary" id="btnStartMvpVote">🌟 Oylamayı Başlat</button>
+    </div>`;
+  }
+
+  function mvpBlockHtml(record){
+    if(!record.mvpAdaylar || record.mvpAdaylar.length === 0) return '';
+    const allPlayers = [...record.teamA, ...record.teamB, ...(record.bench||[])];
+    const candidates = record.mvpAdaylar.map(id => allPlayers.find(p => p.id === id)).filter(Boolean);
+    const votes = record.mvpOylar || {};
+    const totalVotes = Object.values(votes).reduce((a,b) => a+b, 0);
+
+    if(record.mvpKazanan){
+      const winner = allPlayers.find(p => p.id === record.mvpKazanan);
+      if(!winner) return '';
+      return `<div class="payment-table-block" style="margin-bottom:16px; border-color:var(--violet); text-align:center; padding:24px;">
+        <div style="font-size:34px;">🌟🏆</div>
+        <div style="font-family:'Teko',sans-serif; font-size:26px; color:var(--violet); margin-top:6px;">Maçın Yıldızı: ${escapeHtml(winner.ad)} ${escapeHtml(winner.soyad)}</div>
+        <div style="color:var(--muted); font-size:12.5px; margin-top:4px;">${votes[winner.id]||0} oy · toplam ${totalVotes} oy</div>
+      </div>`;
+    }
+
+    return `<div class="payment-table-block" style="margin-bottom:16px; border-color:var(--violet);">
+      <div class="payment-table-head">
+        <h4>🌟 Maçın Yıldızı Oylaması</h4>
+        ${unlocked ? `<button class="btn-ghost" id="btnCloseMvpVote" style="border-color:var(--violet) !important; color:var(--violet);">🏁 Oylamayı Bitir</button>` : ''}
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        ${candidates.map(p => {
+          const v = votes[p.id] || 0;
+          const pct = totalVotes ? Math.round((v/totalVotes)*100) : 0;
+          return `<div style="display:flex; align-items:center; gap:10px;">
+            <button class="btn-ghost mvp-vote-btn" data-pid="${p.id}" style="border-color:var(--violet) !important; color:var(--violet); flex-shrink:0;">👍 Oy Ver</button>
+            <div style="flex:1;">
+              <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:3px;">
+                <span>${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</span><span style="color:var(--muted);">${v} oy</span>
+              </div>
+              <div class="p-bar-track"><span class="p-bar-fill" style="width:${pct}%; background:var(--violet);"></span></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }
+
+  function bindMvpVoting(){
+    $$('.mvp-candidate-check').forEach(cb => {
+      cb.addEventListener('change', () => cb.closest('.chip').classList.toggle('active', cb.checked));
+    });
+    const startBtn = $('#btnStartMvpVote');
+    if(startBtn) startBtn.addEventListener('click', () => {
+      const ids = $$('.mvp-candidate-check:checked').map(cb => cb.value);
+      if(ids.length < 2){ alert('En az 2 aday seçmelisin.'); return; }
+      currentRecord.mvpAdaylar = ids;
+      currentRecord.mvpOylar = {};
+      currentRecord.mvpKazanan = null;
+      updateRecordFields(currentRecord, { mvpAdaylar: ids, mvpOylar: {}, mvpKazanan: null });
+      showMvpPicker = false;
+      displayRecord(currentRecord);
+    });
+    $$('.mvp-vote-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.dataset.pid;
+        currentRecord.mvpOylar = currentRecord.mvpOylar || {};
+        currentRecord.mvpOylar[pid] = (currentRecord.mvpOylar[pid] || 0) + 1;
+        updateRecordFields(currentRecord, { mvpOylar: currentRecord.mvpOylar });
+        displayRecord(currentRecord);
+      });
+    });
+    const closeBtn = $('#btnCloseMvpVote');
+    if(closeBtn) closeBtn.addEventListener('click', () => {
+      const votes = currentRecord.mvpOylar || {};
+      let winner = null, max = -1;
+      Object.keys(votes).forEach(pid => { if(votes[pid] > max){ max = votes[pid]; winner = pid; } });
+      if(!winner && currentRecord.mvpAdaylar) winner = currentRecord.mvpAdaylar[0];
+      currentRecord.mvpKazanan = winner;
+      updateRecordFields(currentRecord, { mvpKazanan: winner });
+      displayRecord(currentRecord);
+    });
+    bindSaveResult();
+  }
+
   function handleSwapClick(pid){
     if(!selectedSwapId){
       selectedSwapId = pid;
@@ -1654,7 +1903,7 @@
     const paidCount = rows.filter(r => r.p.odedi).length;
     return `<div class="payment-table-block">
       <div class="payment-table-head">
-        <h4>💵 Saha Parası Takibi - IBAN : TR88 0015 7000 0000 0088 6226 81 / Yusuf BAŞ </h4>
+        <h4>💵 Saha Parası Takibi</h4>
         <span class="balance-tag">${paidCount}/${rows.length} ödedi</span>
       </div>
       <div class="payment-table-wrap">
@@ -1728,6 +1977,8 @@
           ${bar('ŞUT', p.sut)}
           ${bar('KOŞ', p.kosu)}
           ${bar('SAV', p.savunma)}
+          ${bar('FİZ', p.fizik ?? 6)}
+          ${bar('TOP', p.topKontrolu ?? 6)}
         </div>
       </div>`;
     overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
@@ -1811,6 +2062,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v19 · El Clasico başlığı + şifre korundu</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v20 · sonuç/gol-asist + fizik/top + MVP oylama</div>
 </body>
 </html>
