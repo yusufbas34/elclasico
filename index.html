@@ -360,6 +360,12 @@
   }
   #photoPreview img{ width:100%; height:100%; object-fit:cover; }
 
+  details > summary{ list-style:none; }
+  details > summary::-webkit-details-marker{ display:none; }
+  details > summary::before{ content:'▸ '; color:var(--muted); font-size:11px; }
+  details[open] > summary::before{ content:'▾ '; }
+  .payment-table-head h4{ display:inline; }
+
   .empty{
     text-align:center; padding: 40px 20px; color: var(--muted);
   }
@@ -673,30 +679,33 @@
         </select>
       </div>
 
-      <div class="stat-row">
-        <div class="stat-row-head"><label for="fPas">Pas</label><span class="stat-val" id="vPas">6.0</span></div>
-        <input type="range" id="fPas" min="1" max="10" step="0.1" value="6">
-      </div>
-      <div class="stat-row">
-        <div class="stat-row-head"><label for="fSut">Şut</label><span class="stat-val" id="vSut">6.0</span></div>
-        <input type="range" id="fSut" min="1" max="10" step="0.1" value="6">
-      </div>
-      <div class="stat-row">
-        <div class="stat-row-head"><label for="fKosu">Koşu</label><span class="stat-val" id="vKosu">6.0</span></div>
-        <input type="range" id="fKosu" min="1" max="10" step="0.1" value="6">
-      </div>
-      <div class="stat-row">
-        <div class="stat-row-head"><label for="fSavunma">Savunma</label><span class="stat-val" id="vSavunma">6.0</span></div>
-        <input type="range" id="fSavunma" min="1" max="10" step="0.1" value="6">
-      </div>
-      <div class="stat-row">
-        <div class="stat-row-head"><label for="fFizik">Fizik</label><span class="stat-val" id="vFizik">6.0</span></div>
-        <input type="range" id="fFizik" min="1" max="10" step="0.1" value="6">
-      </div>
-      <div class="stat-row">
-        <div class="stat-row-head"><label for="fTopKontrolu">Top Kontrolü</label><span class="stat-val" id="vTopKontrolu">6.0</span></div>
-        <input type="range" id="fTopKontrolu" min="1" max="10" step="0.1" value="6">
-      </div>
+      <details id="baseStatsDetails">
+        <summary style="cursor:pointer; color:var(--muted); font-size:12.5px; margin-bottom:10px;">🎯 Detaylı Puanlar (opsiyonel — maç bazlı puanlarla zaten kendiliğinden gelişir)</summary>
+        <div class="stat-row">
+          <div class="stat-row-head"><label for="fPas">Pas</label><span class="stat-val" id="vPas">6.0</span></div>
+          <input type="range" id="fPas" min="1" max="10" step="0.1" value="6">
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-head"><label for="fSut">Şut</label><span class="stat-val" id="vSut">6.0</span></div>
+          <input type="range" id="fSut" min="1" max="10" step="0.1" value="6">
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-head"><label for="fKosu">Koşu</label><span class="stat-val" id="vKosu">6.0</span></div>
+          <input type="range" id="fKosu" min="1" max="10" step="0.1" value="6">
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-head"><label for="fSavunma">Savunma</label><span class="stat-val" id="vSavunma">6.0</span></div>
+          <input type="range" id="fSavunma" min="1" max="10" step="0.1" value="6">
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-head"><label for="fFizik">Fizik</label><span class="stat-val" id="vFizik">6.0</span></div>
+          <input type="range" id="fFizik" min="1" max="10" step="0.1" value="6">
+        </div>
+        <div class="stat-row">
+          <div class="stat-row-head"><label for="fTopKontrolu">Top Kontrolü</label><span class="stat-val" id="vTopKontrolu">6.0</span></div>
+          <input type="range" id="fTopKontrolu" min="1" max="10" step="0.1" value="6">
+        </div>
+      </details>
 
       <button class="btn-primary" id="btnAdd">+ Kadroya Ekle</button>
       <button class="btn-ghost" id="btnCancelEdit" style="display:none; margin-top:8px; width:100%; justify-content:center;">İptal</button>
@@ -1035,6 +1044,7 @@
     const p = players.find(x => x.id === id);
     if(!p || !unlocked) return;
     editingId = id;
+    $('#baseStatsDetails').open = true;
     $('#fAd').value = p.ad;
     $('#fSoyad').value = p.soyad;
     $('#fMevki').value = p.mevki;
@@ -1279,6 +1289,11 @@
       return;
     }
     const existing = allMatches.find(m => m.id === dateStr);
+    if(existing && dateStr < todayStr()){
+      alert('Bu tarih geçmiş — geçmiş bir maçın kadrosu artık değiştirilemez. Sonuç, gol/asist ve ödeme bilgisini yine de girebilirsin.');
+      displayRecord(existing);
+      return;
+    }
     if(existing && existing.kilitli){
       alert('Bu tarihteki kadro kilitlenmiş, değiştirilemez. Önce kilidini açman gerekiyor.');
       displayRecord(existing);
@@ -1311,6 +1326,19 @@
     assignMakeshiftKeeper(teamA);
     assignMakeshiftKeeper(teamB);
 
+    if(existing){
+      const oldAll = [...existing.teamA, ...existing.teamB, ...(existing.bench||[])];
+      [...teamA, ...teamB, ...bench].forEach(p => {
+        const old = oldAll.find(o => o.id === p.id);
+        if(old){
+          if(old.odedi) p.odedi = old.odedi;
+          if(old.gol) p.gol = old.gol;
+          if(old.asist) p.asist = old.asist;
+          if(old.kurtaris) p.kurtaris = old.kurtaris;
+        }
+      });
+    }
+
     const record = {
       id: dateStr,
       tarih: dateStr,
@@ -1318,6 +1346,8 @@
       dizilis: formationStr || null,
       adiA: (existing && existing.adiA) || 'TAKIM A',
       adiB: (existing && existing.adiB) || 'TAKIM B',
+      skorA: (existing && existing.skorA) ?? null,
+      skorB: (existing && existing.skorB) ?? null,
       kilitli: false,
       teamA: JSON.parse(JSON.stringify(teamA)),
       teamB: JSON.parse(JSON.stringify(teamB)),
@@ -1514,7 +1544,8 @@
     const balanceLabel = diff < 0.3 ? 'Çok Dengeli' : diff < 0.8 ? 'Dengeli' : 'Orta Dengeli';
     const wrap = $('#resultsWrap');
     const lockedBadge = record.kilitli ? `<span class="balance-tag" style="border-color:var(--coral); color:var(--coral);">🔒 Kilitli</span>` : '';
-    const canEditPlacement = unlocked && !record.kilitli;
+    const isPast = record.tarih < todayStr();
+    const canEditPlacement = unlocked && !record.kilitli && !isPast;
     const scoreLine = (record.skorA !== undefined && record.skorA !== null)
       ? `<span class="balance-tag" style="border-color:var(--lime); color:var(--lime); font-family:'Teko',sans-serif; font-size:16px;">${record.skorA} - ${record.skorB}</span>`
       : '';
@@ -1622,7 +1653,7 @@
         ${team.slice().sort((a,b)=>rating(b)-rating(a)).map(p => `
           <span class="mini-chip profile-trigger${p.id===selectedSwapId ? ' selected' : ''}" data-pid="${p.id}">
             <span class="mini-dot" style="background:${POS_COLOR[effPos(p)]}"></span>
-            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.oynadigiPozisyon === 'Kaleci' ? ' 🧤' : (p.oynadigiPozisyon ? ' ↔' : '')}
+            ${escapeHtml(p.ad)} ${escapeHtml(p.soyad)} · ${fmt1(rating(p))}${p.oynadigiPozisyon === 'Kaleci' ? ' 🧤' : (p.oynadigiPozisyon ? ' ↔' : '')}${p.gol ? ` ⚽${p.gol}` : ''}${p.asist ? ` 🅰️${p.asist}` : ''}${p.kurtaris ? ` 🧤${p.kurtaris}` : ''}
           </span>`).join('')}
         ${team.length < N ? `<span class="mini-chip" style="border-style:dashed; color:${COLORS.muted}">⚠ ${N-team.length} eksik</span>` : ''}
       </div>
@@ -1897,12 +1928,12 @@
       ...(record.bench||[]).map(p => ({ p, ekip: 'Yedek' }))
     ];
     const paidCount = rows.filter(r => r.p.odedi).length;
-    return `<div class="payment-table-block">
-      <div class="payment-table-head">
-        <h4>💵 Saha Parası Takibi</h4>
+    return `<details class="payment-table-block">
+      <summary class="payment-table-head" style="cursor:pointer; list-style:none;">
+        <h4 style="display:inline;">💵 Saha Parası Takibi</h4>
         <span class="balance-tag">${paidCount}/${rows.length} ödedi</span>
-      </div>
-      <div class="payment-table-wrap">
+      </summary>
+      <div class="payment-table-wrap" style="margin-top:12px;">
         <table class="payment-table">
           <thead><tr><th>Oyuncu</th><th>Takım</th><th>Durum</th></tr></thead>
           <tbody>
@@ -1915,7 +1946,7 @@
           </tbody>
         </table>
       </div>
-    </div>`;
+    </details>`;
   }
 
   function bindPaymentTable(){
@@ -2099,6 +2130,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v21 · herkese açık sonuç girişi + tarih sabitleme + tıkla-puanla</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v22 · geçmiş kadro donuyor, ödeme korunuyor, gol/asist görünüyor, katlanır bölümler</div>
 </body>
 </html>
