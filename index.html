@@ -397,11 +397,11 @@
   }
   .profile-card{
     position: relative;
-    width: 260px; max-width: 90vw;
+    width: 420px; max-width: 94vw;
     background: linear-gradient(180deg, var(--surface), var(--surface-2) 140%);
     border: 1px solid rgba(245,247,250,0.1);
     border-radius: var(--radius);
-    padding: 28px 20px 20px;
+    padding: 30px 28px 22px;
     display:flex; flex-direction:column; align-items:center; text-align:center;
     box-shadow: 0 24px 60px rgba(0,0,0,0.5);
   }
@@ -657,7 +657,7 @@
 
   <!-- ADD/EDIT PLAYER MODAL -->
   <div id="addModal" style="display:none; position:fixed; inset:0; z-index:120; background:rgba(5,6,11,0.75); backdrop-filter:blur(3px); align-items:center; justify-content:center; padding:24px;">
-    <div class="panel" style="width:360px; max-width:92vw; max-height:88vh; overflow-y:auto; position:relative;">
+    <div class="panel" style="width:480px; max-width:94vw; max-height:88vh; overflow-y:auto; position:relative;">
       <button id="addModalClose" style="position:absolute; top:12px; right:12px; background:transparent; border:none; color:var(--muted); font-size:16px; cursor:pointer;">✕</button>
       <div id="addPanelContent">
       <h2 id="addModalTitle">Oyuncu Ekle</h2>
@@ -1358,14 +1358,14 @@
 
   // ---------- maç istikrarı (kaç maça geldi) ----------
   const PRIDE_GIFS = [
+    'https://i.gifer.com/origin/f3/f3e6d9e2a1eb998259f339e24508049f_w200.webp',
+    'https://media.tenor.com/yISwoNkh6PoAAAAM/pride-rainbow-dance.gif',
+    'https://i.pinimg.com/1200x/a6/ae/67/a6ae6789ced250e39947304223eea05b.jpg',
+    'https://cdn.dsmcdn.com/ty1764/prod/QC_ENRICHMENT/20250926/23/8d22a336-53a5-3d65-8395-608d5cc4652c/1_org_zoom.jpg',
+    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcShT4YTcfxHKbzj0eI2D45LaUHH4NMpJ73IllI1XDvjpg&s=10',
     'https://media.tenor.com/mr1PnUIApZ4AAAAj/happy-pride-victor-salazar.gif',
     'https://media.tenor.com/6IlIxNmizEAAAAAM/rainbow-gay.gif',
-    'https://media.tenor.com/gHtdZVkGf60AAAAM/oh-no-dont-chase-me-gay-run.gif',
-    'https://media.tenor.com/M2u0sPls4bYAAAAM/gay-gay-men.gif',
-    'https://media.tenor.com/TvDps5i53TEAAAAm/abster-abstract.webp',
-    'https://media.tenor.com/HmAtpTX92OsAAAAM/frankie-grande-rainbow.gif',
-    'https://media.tenor.com/wb9qgz5W7GcAAAAm/arc-balance.webp',
-    'https://media.tenor.com/DA8IJdk-JhUAAAAm/lgbt-pride.webp'
+    'https://media.tenor.com/M2u0sPls4bYAAAAM/gay-gay-men.gif'
   ];
 
   function attendanceStats(pid){
@@ -1717,7 +1717,7 @@
     const wrap = $('#resultsWrap');
     const lockedBadge = record.kilitli ? `<span class="balance-tag" style="border-color:var(--coral); color:var(--coral);">🔒 Kilitli</span>` : '';
     const isPast = record.tarih < todayStr();
-    const canEditPlacement = unlocked && !record.kilitli && !isPast;
+    const canEditPlacement = unlocked && !isPast;
     const scoreLine = (record.skorA !== undefined && record.skorA !== null)
       ? `<span class="balance-tag" style="border-color:var(--lime); color:var(--lime); font-family:'Teko',sans-serif; font-size:16px;">${record.skorA} - ${record.skorB}</span>`
       : '';
@@ -1751,7 +1751,7 @@
         <button class="btn-manual-edit" id="btnToggleResultPanel" style="background:rgba(255,176,32,0.14); border-color:var(--amber); color:var(--amber); animation:none;">
           ${showResultPanel ? '✕ Sonuç Girişini Kapat' : '📋 Skor, Gol & Asist Gir (herkese açık)'}
         </button>` : ''}
-        ${unlocked && !record.kilitli ? `
+        ${unlocked ? `
         <button class="btn-manual-edit" id="btnToggleMvpPicker" style="background:rgba(155,107,255,0.14); border-color:var(--violet); color:var(--violet); animation:none;">
           ${showMvpPicker ? '✕ MVP Seçimini Kapat' : '🌟 MVP Adayı Seç'}
         </button>` : ''}
@@ -1819,14 +1819,18 @@
   }
 
   function teamBlock(cls, name, team, N, record){
-    const editable = unlocked && !record.kilitli;
+    const editable = unlocked;
     const nameHtml = editable
       ? `<input type="text" class="team-name-input" data-cls="${cls}" value="${escapeHtml(name)}">`
       : `<h3>${escapeHtml(name)}</h3>`;
+    const myScore = cls === 'a' ? record.skorA : record.skorB;
+    const scoreHtml = (myScore !== undefined && myScore !== null)
+      ? `<div style="font-family:'Teko',sans-serif; font-size:44px; font-weight:700; line-height:1; color:${cls==='a'?'var(--lime)':'var(--amber)'};">${myScore}</div>`
+      : `<div class="team-avg">Ort. Güç<br><b>${fmt1(avg(team))}</b></div>`;
     return `<div class="team-block">
       <div class="team-head ${cls}">
         ${nameHtml}
-        <div class="team-avg">Ort. Güç<br><b>${fmt1(avg(team))}</b></div>
+        ${scoreHtml}
       </div>
       <div class="pitch-wrap">${pitchSvg(team)}</div>
       <div class="roster-mini">
@@ -2199,19 +2203,13 @@
 
         ${canEdit ? `
         <div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px;">
-          <div style="font-size:12px; color:var(--chalk); margin-bottom:10px; font-weight:600;">⚽ Maç İstatistiği</div>
-          <div style="display:flex; gap:8px; margin-bottom:14px;">
-            <label style="flex:1; font-size:11px; color:var(--muted);">Gol<input type="number" min="0" id="qGol" value="${p.gol||0}" style="width:100%; text-align:center; margin-top:4px;"></label>
-            <label style="flex:1; font-size:11px; color:var(--muted);">Asist<input type="number" min="0" id="qAsist" value="${p.asist||0}" style="width:100%; text-align:center; margin-top:4px;"></label>
-            ${isKeeper ? `<label style="flex:1; font-size:11px; color:var(--muted);">Kurtarış<input type="number" min="0" id="qKurtaris" value="${p.kurtaris||0}" style="width:100%; text-align:center; margin-top:4px;"></label>` : ''}
-          </div>
           <div style="font-size:12px; color:var(--chalk); margin-bottom:8px; font-weight:600;">🎯 Bu Maçki Performans</div>
-          <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">Verdiğin puan bu maça işlenir ve oyuncunun genel puanına kayan ortalamayla yansır.</div>
+          <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">Verdiğin puan bu maça işlenir ve oyuncunun genel puanına kayan ortalamayla yansır. (Gol/asist "Skor Gir" bölümünden girilir.)</div>
           ${STAT_KEYS.map(k => miniStatSlider(p, k)).join('')}
           <button class="btn-primary" id="btnSaveQuickRate" style="margin-top:12px; padding:10px 14px; font-size:13px; width:100%;">✓ Kaydet</button>
         </div>`
-        : (currentRecord && currentRecord.kilitli
-          ? `<div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px; font-size:12px; color:var(--muted);">🔒 Bu maç kilitli, değişiklik yapılamaz.</div>`
+        : (currentRecord && currentRecord.statKilitli
+          ? `<div style="width:100%; margin-top:16px; border-top:1px dashed var(--line); padding-top:14px; font-size:12px; color:var(--muted);">📊 İstatistik kilitli, değişiklik yapılamaz.</div>`
           : '')}
       </div>`;
     overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
@@ -2236,14 +2234,6 @@
     const recPlayer = findPlayerInRecord(pid);
     const poolPlayer = players.find(pl => pl.id === pid);
     if(!recPlayer) return;
-
-    // Gol / asist / kurtarış
-    const golEl = overlay.querySelector('#qGol');
-    const asistEl = overlay.querySelector('#qAsist');
-    const kurtarisEl = overlay.querySelector('#qKurtaris');
-    if(golEl) recPlayer.gol = +golEl.value || 0;
-    if(asistEl) recPlayer.asist = +asistEl.value || 0;
-    if(kurtarisEl) recPlayer.kurtaris = +kurtarisEl.value || 0;
 
     // Performans puanları → maça yaz + havuza kayan ortalamayla yansıt
     STAT_KEYS.forEach(key => {
@@ -2355,6 +2345,6 @@
   loadMatchList();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v27 · sol panel kaldırıldı, admin butonu, havuz profil kartı, ayrı istatistik kilidi, saha gol/asist rozetleri, maç istikrarı</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v28 · geniş kartlar, takım skoru büyük, admin kilitliyken de düzenler, gol/asist tek yerde</div>
 </body>
 </html>
