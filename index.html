@@ -97,6 +97,15 @@
     line-height: 1.55;
     margin-top: 14px;
   }
+  #heroMvpMount{ margin-top: 20px; }
+  @media (min-width: 861px){
+    #heroMvpMount{ position:absolute; top:0; right:24px; width:340px; margin-top:0; }
+  }
+  .share-btn{
+    color:#fff; font-size:11.5px; font-weight:700; padding:7px 12px;
+    border-radius:8px; border:none; cursor:pointer;
+  }
+  .share-btn:hover{ filter:brightness(1.1); }
   .hero-stats{
     display:flex; gap: 36px; margin-top: 30px; flex-wrap: wrap;
   }
@@ -574,6 +583,12 @@
 
   /* ================= MOBİL (telefon) ================= */
   @media (max-width: 640px){
+    .roster-head{ flex-direction:column; align-items:stretch; }
+    .filters{ overflow-x:auto; -webkit-overflow-scrolling:touch; padding-bottom:4px; }
+    .btn-manual-edit{ width:100%; justify-content:center; text-align:center; }
+    .share-btn{ flex:1 1 auto; }
+    #heroMvpMount{ width:100%; }
+    .team-name-input{ width:110px; }
     .wrap{ padding: 0 16px; }
     .hero{ padding: 36px 0 24px; }
     .hero-stats{ gap: 22px; }
@@ -620,7 +635,7 @@
 
 <div class="hero">
   <div class="hero-glow"></div>
-  <div class="wrap">
+  <div class="wrap" style="position:relative;">
     <div class="eyebrow"><span class="dot"></span> HAFTALIK ŞİRKET MAÇI</div>
     <h1 class="title">EL CLASICO<span>.</span></h1>
     <p class="hero-sub">Oyuncuları ekle, mevkisini ve formunu gir; sistem her hafta dengeli iki takımı saniyeler içinde sahaya çıkarsın.</p>
@@ -629,6 +644,7 @@
       <div class="hero-stat"><b id="statGk">0</b><span>Kaleci</span></div>
       <div class="hero-stat"><b id="statAvg">—</b><span>Ort. Güç</span></div>
     </div>
+    <div id="heroMvpMount"></div>
   </div>
 </div>
 
@@ -1077,17 +1093,18 @@
   $('#addModal').addEventListener('click', (e) => { if(e.target === $('#addModal')) closeAddModal(); });
 
   // ---------- havuzu gizle/göster ----------
+  let rosterHidden = false;
   $('#btnToggleRoster').addEventListener('click', () => {
+    rosterHidden = !rosterHidden;
+    applyRosterVisibility();
+  });
+  function applyRosterVisibility(){
     const list = $('#rosterList');
     const btn = $('#btnToggleRoster');
-    if(list.style.display === 'none'){
-      list.style.display = 'grid';
-      btn.textContent = '▾ Havuzu Gizle';
-    } else {
-      list.style.display = 'none';
-      btn.textContent = '▸ Havuzu Göster';
-    }
-  });
+    if(!list || !btn) return;
+    list.style.display = rosterHidden ? 'none' : 'grid';
+    btn.textContent = rosterHidden ? '▸ Havuzu Göster' : '▾ Havuzu Gizle';
+  }
 
   // ---------- fotoğraf seçimi ----------
   $('#btnPickPhoto').addEventListener('click', () => $('#fFoto').click());
@@ -1318,6 +1335,7 @@
     $('#statTotal').textContent = players.length;
     $('#statAttending').textContent = players.filter(p=>p.gelecek).length;
     updateAttendCounter();
+    applyRosterVisibility();
 
     $$('.p-edit').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -1726,6 +1744,7 @@
 
   function displayEmptyForDate(dateStr){
     currentRecord = null;
+    renderHeroMvp(null);
     const wrap = $('#resultsWrap');
     const isPast = dateStr < todayStr();
     wrap.innerHTML = `
@@ -1764,7 +1783,6 @@
          </div>`
       : '';
     wrap.innerHTML = `
-      ${mvpTopBannerHtml(record)}
       <div class="results-head">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <button class="btn-ghost" id="btnPrevMatch">◀</button>
@@ -1795,6 +1813,13 @@
           ${showMvpPicker ? '✕ MVP Seçimini Kapat' : '🌟 MVP Adayı Seç'}
         </button>` : ''}
       </div>
+      <div id="lineupShareWrap" style="display:flex; align-items:center; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+        <span style="font-size:12px; color:var(--muted);">📤 Kadroyu paylaş:</span>
+        <button class="share-btn" data-net="whatsapp" style="background:#25D366;">WhatsApp</button>
+        <button class="share-btn" data-net="instagram" style="background:#E1306C;">Kopyala (IG)</button>
+        <button class="share-btn" data-net="generic" style="background:var(--surface-2); border:1px solid var(--line) !important;">Paylaş</button>
+        <button class="share-btn" id="btnShareLineup" data-net="generic" style="display:none;"></button>
+      </div>
       ${manualBanner}
       ${showResultPanel ? resultPanelHtml(record) : ''}
       ${showMvpPicker ? mvpPickerHtml(record) : ''}
@@ -1815,6 +1840,18 @@
     bindResultPanelToggle();
     bindMvpPickerToggle();
     bindMvpVoting();
+    renderHeroMvp(record);
+    bindLineupShare(record);
+  }
+
+  function bindLineupShare(record){
+    const wrap = $('#lineupShareWrap');
+    if(!wrap) return;
+    const aNames = record.teamA.map(p=>p.ad+' '+p.soyad).join(', ');
+    const bNames = record.teamB.map(p=>p.ad+' '+p.soyad).join(', ');
+    const scoreStr = (record.skorA!=null && record.skorB!=null) ? ` (${record.skorA}-${record.skorB})` : '';
+    const text = `⚽ ${formatDateLabel(record.tarih)}${scoreStr}\n\n${record.adiA||'TAKIM A'}: ${aNames}\n\n${record.adiB||'TAKIM B'}: ${bNames}\n\nEl Clasico`;
+    bindShareButtons(wrap, text);
   }
 
   function bindTeamNameEdit(record){
@@ -2089,24 +2126,56 @@
     </div>`;
   }
 
-  function mvpTopBannerHtml(record){
-    if(!record || !record.mvpKazanan) return '';
+  function renderHeroMvp(record){
+    const mount = $('#heroMvpMount');
+    if(!mount) return;
+    if(!record || !record.mvpKazanan){ mount.innerHTML = ''; return; }
     const allPlayers = [...record.teamA, ...record.teamB, ...(record.bench||[])];
     const w = allPlayers.find(p => p.id === record.mvpKazanan);
-    if(!w) return '';
+    if(!w){ mount.innerHTML = ''; return; }
     const votes = record.mvpOylar || {};
-    return `<div style="background:linear-gradient(135deg, rgba(155,107,255,0.22), rgba(214,255,63,0.12)); border:1.5px solid var(--violet); border-radius:var(--radius); padding:20px; margin-bottom:20px; display:flex; align-items:center; gap:18px; justify-content:center; flex-wrap:wrap;">
-      <div style="font-size:30px;">🏆</div>
-      <div style="width:84px; height:84px; border-radius:50%; border:3px solid var(--violet); overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-family:'Teko',sans-serif; font-size:30px; color:var(--chalk);">
-        ${w.foto ? `<img src="${w.foto}" style="width:100%;height:100%;object-fit:cover;">` : initials(w)}
-      </div>
-      <div style="text-align:left;">
-        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:2px; color:var(--violet);">GÜNÜN MVP'Sİ</div>
-        <div style="font-family:'Teko',sans-serif; font-size:32px; color:var(--chalk); line-height:1;">${escapeHtml(w.ad)} ${escapeHtml(w.soyad)}</div>
-        <div style="font-size:12px; color:var(--muted);">${votes[w.id]||0} oy ile · ${formatDateLabel(record.tarih)}</div>
-      </div>
+    const shareText = `🏆 ${formatDateLabel(record.tarih)} Günün MVP'si: ${w.ad} ${w.soyad} (${votes[w.id]||0} oy) — El Clasico`;
+    mount.innerHTML = `
+      <div style="background:linear-gradient(135deg, rgba(155,107,255,0.25), rgba(214,255,63,0.14)); border:1.5px solid var(--violet); border-radius:var(--radius); padding:16px; text-align:center;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--violet);">🏆 GÜNÜN MVP'Sİ</div>
+        <div style="width:72px; height:72px; margin:10px auto 6px; border-radius:50%; border:3px solid var(--violet); overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-family:'Teko',sans-serif; font-size:26px; color:var(--chalk);">
+          ${w.foto ? `<img src="${w.foto}" style="width:100%;height:100%;object-fit:cover;">` : initials(w)}
+        </div>
+        <div style="font-family:'Teko',sans-serif; font-size:26px; color:var(--chalk); line-height:1;">${escapeHtml(w.ad)} ${escapeHtml(w.soyad)}</div>
+        <div style="font-size:11px; color:var(--muted); margin-bottom:10px;">${votes[w.id]||0} oy · ${formatDateLabel(record.tarih)}</div>
+        ${shareButtonsHtml(shareText)}
+      </div>`;
+    bindShareButtons(mount, shareText);
+  }
+
+  function shareButtonsHtml(text){
+    return `<div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+      <button class="share-btn" data-net="whatsapp" style="background:#25D366;">WhatsApp</button>
+      <button class="share-btn" data-net="instagram" style="background:#E1306C;">Kopyala (IG)</button>
+      <button class="share-btn" data-net="generic" style="background:var(--surface-2); border:1px solid var(--line) !important;">Paylaş</button>
     </div>`;
   }
+
+  function bindShareButtons(scope, text){
+    scope.querySelectorAll('.share-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const net = btn.dataset.net;
+        const url = location.href;
+        const full = text + ' ' + url;
+        if(net === 'whatsapp'){
+          window.open('https://wa.me/?text=' + encodeURIComponent(full), '_blank');
+        } else if(net === 'instagram'){
+          navigator.clipboard?.writeText(full).then(() => alert('Metin kopyalandı — Instagram\'a yapıştırabilirsin.')).catch(()=>{});
+        } else {
+          if(navigator.share){ navigator.share({ text: text, url: url }).catch(()=>{}); }
+          else { navigator.clipboard?.writeText(full).then(() => alert('Panoya kopyalandı.')).catch(()=>{}); }
+        }
+      });
+    });
+  }
+
+  function mvpTopBannerHtml(record){ return ''; }
 
   function bindMvpVoting(){
     $$('.mvp-candidate-check').forEach(cb => {
@@ -2436,6 +2505,6 @@
   })();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v30 · katılım artık tarihe özel (ileri tarih = herkes gelmiyor başlar)</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v31 · MVP en üstte + WhatsApp/IG paylaş, havuz kapatma ve mobil düzeltmeleri</div>
 </body>
 </html>
