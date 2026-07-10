@@ -873,6 +873,7 @@
     docRef.onSnapshot(snap => {
       if(snap.exists){
         players = snap.data().players || [];
+        players.forEach(p => { p.gelecek = !!attendance[p.id]; });
         renderRoster();
       }
     }, err => console.error('Canlı senkron hatası:', err));
@@ -903,8 +904,42 @@
   function initials(p){ return (p.ad[0]||'').toUpperCase() + (p.soyad[0]||'').toUpperCase(); }
   function uid(){ return 'p_' + Math.random().toString(36).slice(2,10); }
 
+  // Cihaz kimliği — bir cihaz bir MVP oyu versin diye (çerezde saklanır)
+  function getDeviceId(){
+    let m = document.cookie.match(/(?:^|;\s*)elclasico_dev=([^;]+)/);
+    if(m) return m[1];
+    const id = 'dev_' + Math.random().toString(36).slice(2,12);
+    document.cookie = 'elclasico_dev=' + id + '; max-age=' + (60*60*24*365*3) + '; path=/';
+    return id;
+  }
+  const DEVICE_ID = getDeviceId();
+
   // ---------- sabitlenmiş (herkes için ortak) aktif tarih ----------
   let pinnedDate = null;
+  let attendance = {};
+  let attendanceDate = null;
+
+  function attendanceDoc(dateStr){ return db.collection('katilim').doc(dateStr); }
+
+  async function loadAttendance(dateStr){
+    attendanceDate = dateStr;
+    attendance = {};
+    if(firebaseReady){
+      try{
+        const snap = await attendanceDoc(dateStr).get();
+        if(snap.exists && snap.data().gelenler){
+          (snap.data().gelenler || []).forEach(id => { attendance[id] = true; });
+        }
+      }catch(err){ console.error('Katılım okunamadı:', err); }
+    }
+    players.forEach(p => { p.gelecek = !!attendance[p.id]; });
+  }
+
+  function saveAttendance(){
+    if(!firebaseReady || !attendanceDate) return;
+    const gelenler = players.filter(p => p.gelecek).map(p => p.id);
+    attendanceDoc(attendanceDate).set({ gelenler }).catch(err => console.error('Katılım kaydedilemedi:', err));
+  }
   function pinnedDateDoc(){ return db.collection('ayarlar').doc('aktifTarih'); }
 
   async function loadPinnedDate(){
@@ -1159,12 +1194,12 @@
   $('#btnSelectAll').addEventListener('click', () => {
     players.forEach(p => p.gelecek = true);
     renderRoster();
-    savePool();
+    saveAttendance();
   });
   $('#btnSelectNone').addEventListener('click', () => {
     players.forEach(p => p.gelecek = false);
     renderRoster();
-    savePool();
+    saveAttendance();
   });
 
   function flash(el){
@@ -1303,7 +1338,7 @@
       cb.addEventListener('change', (e) => {
         e.stopPropagation();
         const p = players.find(pl => pl.id === cb.dataset.id);
-        if(p){ p.gelecek = cb.checked; renderRoster(); savePool(); }
+        if(p){ p.gelecek = cb.checked; renderRoster(); saveAttendance(); }
       });
     });
     // Her karta tıklama → havuz profil kartı (admin olsun olmasın)
@@ -1680,7 +1715,9 @@
     if(nextBtn){ nextBtn.disabled = !hasNext; nextBtn.style.opacity = hasNext ? '1' : '.35'; }
   }
 
-  function tryLoadDate(dateStr){
+  async function tryLoadDate(dateStr){
+    await loadAttendance(dateStr);
+    renderRoster();
     const rec = allMatches.find(m => m.id === dateStr);
     if(rec) displayRecord(rec);
     else displayEmptyForDate(dateStr);
@@ -1727,6 +1764,7 @@
          </div>`
       : '';
     wrap.innerHTML = `
+      ${mvpTopBannerHtml(record)}
       <div class="results-head">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <button class="btn-ghost" id="btnPrevMatch">◀</button>
@@ -1734,6 +1772,7 @@
           <button class="btn-ghost" id="btnNextMatch">▶</button>
           ${unlocked ? `<button class="btn-ghost" id="btnToggleLock">${record.kilitli ? '🔓 Kilidi Aç' : '🔒 Kadroyu Kilitle'}</button>` : ''}
           ${unlocked ? `<button class="btn-ghost" id="btnToggleStatLock">${record.statKilitli ? '🔓 İstatistik Kilidini Aç' : '📊 İstatistiği Kilitle'}</button>` : ''}
+          ${unlocked ? `<button class="btn-ghost" id="btnDeleteRecord" style="border-color:var(--coral) !important; color:var(--coral);">🗑 Kadroyu Sil</button>` : ''}
         </div>
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           ${scoreLine}
@@ -1804,6 +1843,17 @@
       record.statKilitli = !record.statKilitli;
       await updateRecordFields(record, { statKilitli: record.statKilitli });
       displayRecord(record);
+    });
+    const delBtn = $('#btnDeleteRecord');
+    if(delBtn) delBtn.addEventListener('click', async () => {
+      if(!confirm(`${formatDateLabel(record.tarih)} kadrosunu tamamen silmek istediğine emin misin? Bu geri alınamaz.`)) return;
+      if(firebaseReady){
+        try{ await db.collection('macGecmisi').doc(record.id).delete(); }catch(err){ console.error('Kadro silinemedi:', err); }
+      }
+      allMatches = allMatches.filter(m => m.id !== record.id);
+      currentRecord = null;
+      renderHistorySelect();
+      displayEmptyForDate(record.tarih);
     });
   }
 
@@ -1998,31 +2048,35 @@
   function mvpBlockHtml(record){
     if(!record.mvpAdaylar || record.mvpAdaylar.length === 0) return '';
     const allPlayers = [...record.teamA, ...record.teamB, ...(record.bench||[])];
-    const candidates = record.mvpAdaylar.map(id => allPlayers.find(p => p.id === id)).filter(Boolean);
     const votes = record.mvpOylar || {};
     const totalVotes = Object.values(votes).reduce((a,b) => a+b, 0);
 
     if(record.mvpKazanan){
-      const winner = allPlayers.find(p => p.id === record.mvpKazanan);
-      if(!winner) return '';
-      return `<div class="payment-table-block" style="margin-bottom:16px; border-color:var(--violet); text-align:center; padding:24px;">
-        <div style="font-size:34px;">🌟🏆</div>
-        <div style="font-family:'Teko',sans-serif; font-size:26px; color:var(--violet); margin-top:6px;">Maçın Yıldızı: ${escapeHtml(winner.ad)} ${escapeHtml(winner.soyad)}</div>
-        <div style="color:var(--muted); font-size:12.5px; margin-top:4px;">${votes[winner.id]||0} oy · toplam ${totalVotes} oy</div>
+      if(!unlocked) return '';
+      return `<div class="payment-table-block" style="margin-bottom:16px; border-color:var(--violet); text-align:center; padding:16px;">
+        <div style="font-size:13px; color:var(--muted);">🌟 Bu maçın MVP oylaması tamamlandı (sonuç en üstte).</div>
+        <button class="btn-ghost" id="btnDeleteMvp" style="margin-top:10px; border-color:var(--coral) !important; color:var(--coral);">🗑 Oylamayı Sil</button>
       </div>`;
     }
 
+    const voted = record.mvpVerenler && record.mvpVerenler[DEVICE_ID];
+    const candidates = record.mvpAdaylar.map(id => allPlayers.find(p => p.id === id)).filter(Boolean);
     return `<div class="payment-table-block" style="margin-bottom:16px; border-color:var(--violet);">
       <div class="payment-table-head">
         <h4>🌟 Maçın Yıldızı Oylaması</h4>
-        ${unlocked ? `<button class="btn-ghost" id="btnCloseMvpVote" style="border-color:var(--violet) !important; color:var(--violet);">🏁 Oylamayı Bitir</button>` : ''}
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          ${unlocked ? `<button class="btn-ghost" id="btnCloseMvpVote" style="border-color:var(--violet) !important; color:var(--violet);">🏁 Oylamayı Bitir</button>` : ''}
+          ${unlocked ? `<button class="btn-ghost" id="btnDeleteMvp" style="border-color:var(--coral) !important; color:var(--coral);">🗑 Sil</button>` : ''}
+        </div>
       </div>
+      ${voted ? `<div style="font-size:12px; color:var(--lime); margin-bottom:10px;">✓ Bu cihazdan oyunu kullandın.${unlocked ? ' (Yönetici olarak tekrar oy verebilirsin.)' : ''}</div>` : ''}
       <div style="display:flex; flex-direction:column; gap:8px;">
         ${candidates.map(p => {
           const v = votes[p.id] || 0;
           const pct = totalVotes ? Math.round((v/totalVotes)*100) : 0;
+          const canVote = unlocked || !voted;
           return `<div style="display:flex; align-items:center; gap:10px;">
-            <button class="btn-ghost mvp-vote-btn" data-pid="${p.id}" style="border-color:var(--violet) !important; color:var(--violet); flex-shrink:0;">👍 Oy Ver</button>
+            <button class="btn-ghost mvp-vote-btn" data-pid="${p.id}" ${canVote ? '' : 'disabled'} style="border-color:var(--violet) !important; color:var(--violet); flex-shrink:0; ${canVote ? '' : 'opacity:.4;'}">👍 Oy Ver</button>
             <div style="flex:1;">
               <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:3px;">
                 <span>${escapeHtml(p.ad)} ${escapeHtml(p.soyad)}</span><span style="color:var(--muted);">${v} oy</span>
@@ -2031,6 +2085,25 @@
             </div>
           </div>`;
         }).join('')}
+      </div>
+    </div>`;
+  }
+
+  function mvpTopBannerHtml(record){
+    if(!record || !record.mvpKazanan) return '';
+    const allPlayers = [...record.teamA, ...record.teamB, ...(record.bench||[])];
+    const w = allPlayers.find(p => p.id === record.mvpKazanan);
+    if(!w) return '';
+    const votes = record.mvpOylar || {};
+    return `<div style="background:linear-gradient(135deg, rgba(155,107,255,0.22), rgba(214,255,63,0.12)); border:1.5px solid var(--violet); border-radius:var(--radius); padding:20px; margin-bottom:20px; display:flex; align-items:center; gap:18px; justify-content:center; flex-wrap:wrap;">
+      <div style="font-size:30px;">🏆</div>
+      <div style="width:84px; height:84px; border-radius:50%; border:3px solid var(--violet); overflow:hidden; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-family:'Teko',sans-serif; font-size:30px; color:var(--chalk);">
+        ${w.foto ? `<img src="${w.foto}" style="width:100%;height:100%;object-fit:cover;">` : initials(w)}
+      </div>
+      <div style="text-align:left;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:2px; color:var(--violet);">GÜNÜN MVP'Sİ</div>
+        <div style="font-family:'Teko',sans-serif; font-size:32px; color:var(--chalk); line-height:1;">${escapeHtml(w.ad)} ${escapeHtml(w.soyad)}</div>
+        <div style="font-size:12px; color:var(--muted);">${votes[w.id]||0} oy ile · ${formatDateLabel(record.tarih)}</div>
       </div>
     </div>`;
   }
@@ -2045,18 +2118,24 @@
       if(ids.length < 2){ alert('En az 2 aday seçmelisin.'); return; }
       currentRecord.mvpAdaylar = ids;
       currentRecord.mvpOylar = {};
+      currentRecord.mvpVerenler = {};
       currentRecord.mvpKazanan = null;
-      updateRecordFields(currentRecord, { mvpAdaylar: ids, mvpOylar: {}, mvpKazanan: null });
+      updateRecordFields(currentRecord, { mvpAdaylar: ids, mvpOylar: {}, mvpVerenler: {}, mvpKazanan: null });
       showMvpPicker = false;
       displayRecord(currentRecord);
     });
     $$('.mvp-vote-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        if(btn.disabled) return;
+        const rec = currentRecord;
+        rec.mvpVerenler = rec.mvpVerenler || {};
+        if(rec.mvpVerenler[DEVICE_ID] && !unlocked){ alert('Bu cihazdan zaten oy verdin.'); return; }
         const pid = btn.dataset.pid;
-        currentRecord.mvpOylar = currentRecord.mvpOylar || {};
-        currentRecord.mvpOylar[pid] = (currentRecord.mvpOylar[pid] || 0) + 1;
-        updateRecordFields(currentRecord, { mvpOylar: currentRecord.mvpOylar });
-        displayRecord(currentRecord);
+        rec.mvpOylar = rec.mvpOylar || {};
+        rec.mvpOylar[pid] = (rec.mvpOylar[pid] || 0) + 1;
+        rec.mvpVerenler[DEVICE_ID] = pid;
+        updateRecordFields(rec, { mvpOylar: rec.mvpOylar, mvpVerenler: rec.mvpVerenler });
+        displayRecord(rec);
       });
     });
     const closeBtn = $('#btnCloseMvpVote');
@@ -2067,6 +2146,16 @@
       if(!winner && currentRecord.mvpAdaylar) winner = currentRecord.mvpAdaylar[0];
       currentRecord.mvpKazanan = winner;
       updateRecordFields(currentRecord, { mvpKazanan: winner });
+      displayRecord(currentRecord);
+    });
+    const delBtn = $('#btnDeleteMvp');
+    if(delBtn) delBtn.addEventListener('click', () => {
+      if(!confirm('MVP oylamasını silmek istediğine emin misin?')) return;
+      currentRecord.mvpAdaylar = null;
+      currentRecord.mvpOylar = null;
+      currentRecord.mvpVerenler = null;
+      currentRecord.mvpKazanan = null;
+      updateRecordFields(currentRecord, { mvpAdaylar: null, mvpOylar: null, mvpVerenler: null, mvpKazanan: null });
       displayRecord(currentRecord);
     });
     bindSaveResult();
@@ -2341,10 +2430,12 @@
 
   renderFormationOptions(activeFormat);
   renderLockUI();
-  loadPool();
-  loadMatchList();
+  (async () => {
+    await loadPool();
+    await loadMatchList();
+  })();
 })();
 </script>
-<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v28 · geniş kartlar, takım skoru büyük, admin kilitliyken de düzenler, gol/asist tek yerde</div>
+<div style="position:fixed; bottom:8px; right:10px; z-index:9999; font-family:'JetBrains Mono', monospace; font-size:10px; color:rgba(143,153,184,0.55); pointer-events:none;">v30 · katılım artık tarihe özel (ileri tarih = herkes gelmiyor başlar)</div>
 </body>
 </html>
